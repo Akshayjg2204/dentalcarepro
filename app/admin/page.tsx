@@ -1,0 +1,930 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { CreateUserModal } from "@/components/create-user-modal"
+import { getCurrentUser, signOut, updateUserRole, deleteUser, cleanupOrphanedAuthUsers } from "@/lib/auth"
+import { getAllAppointments, updateAppointmentStatus, type Appointment } from "@/lib/appointments"
+import { getAllPayments, type Payment } from "@/lib/payments"
+import { supabase } from "@/lib/supabase"
+import { toast } from "sonner"
+import { Search, UserPlus, UsersIcon, Trash2, RefreshCw, Check, X, CalendarIcon } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Badge } from "@/components/ui/badge"
+import {
+  ArrowLeft,
+  LogOut,
+  Calendar,
+  IndianRupee,
+  AlertTriangle,
+  Users,
+  CalendarDays,
+  FileText,
+  Settings,
+  Plus,
+  CreditCard,
+  UserCheck,
+} from "lucide-react"
+import { CompleteAppointmentModal } from "@/components/complete-appointment-modal"
+import { getPaymentStats } from "@/lib/payments"
+import { EmergencyAppointmentModal } from "@/components/emergency-appointment-modal"
+import { PatientProfileModal } from "@/components/patient-profile-modal"
+import { PatientManagementSection } from "@/components/patient-management"
+
+export default function AdminDashboard() {
+  const [currentUser, setCurrentUser] = useState<any>(null)
+  const [users, setUsers] = useState<any[]>([])
+  const [appointments, setAppointments] = useState<Appointment[]>([])
+  const [payments, setPayments] = useState<Payment[]>([])
+  const [filteredUsers, setFilteredUsers] = useState<any[]>([])
+  const [filteredAppointments, setFilteredAppointments] = useState<Appointment[]>([])
+  const [searchTerm, setSearchTerm] = useState("")
+  const [roleFilter, setRoleFilter] = useState("all")
+  const [appointmentFilter, setAppointmentFilter] = useState("all")
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [editingUserId, setEditingUserId] = useState<string | null>(null)
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null)
+  const [isCleaningUp, setIsCleaningUp] = useState(false)
+  const [processingAppointments, setProcessingAppointments] = useState<Set<string>>(new Set())
+  const router = useRouter()
+  const [completeModalAppointment, setCompleteModalAppointment] = useState<Appointment | null>(null)
+  const [paymentStats, setPaymentStats] = useState({
+    totalRevenue: 0,
+    totalPaid: 0,
+    totalOutstanding: 0,
+    fullyPaidCount: 0,
+    partialPaidCount: 0,
+    notPaidCount: 0,
+  })
+  const [isWalkInModalOpen, setIsWalkInModalOpen] = useState(false)
+  const [patientProfileModal, setPatientProfileModal] = useState<{ isOpen: boolean; patientId: string }>({
+    isOpen: false,
+    patientId: "",
+  })
+
+  const filterAppointments = () => {
+    let filtered = appointments
+
+    if (appointmentFilter !== "all") {
+      filtered = filtered.filter((appointment) => appointment.status === appointmentFilter)
+    }
+
+    setFilteredAppointments(filtered)
+  }
+
+  const fetchPaymentStats = async () => {
+    try {
+      const stats = await getPaymentStats()
+      setPaymentStats(stats)
+    } catch (error: any) {
+      console.error("Failed to fetch payment stats:", error)
+    }
+  }
+
+  const fetchPayments = async () => {
+    try {
+      const paymentsData = await getAllPayments()
+      setPayments(paymentsData)
+    } catch (error: any) {
+      console.error("Failed to fetch payments:", error)
+    }
+  }
+
+  useEffect(() => {
+    checkAuth()
+    fetchUsers()
+    fetchAppointments()
+    fetchPaymentStats()
+    fetchPayments()
+  }, [])
+
+  useEffect(() => {
+    filterUsers()
+  }, [users, searchTerm, roleFilter])
+
+  useEffect(() => {
+    filterAppointments()
+  }, [appointments, appointmentFilter])
+
+  const checkAuth = async () => {
+    try {
+      const user = await getCurrentUser()
+      if (!user || user.profile.role !== "admin") {
+        toast.error("Access denied. Admin privileges required.")
+        router.push("/login")
+        return
+      }
+      setCurrentUser(user)
+    } catch (error: any) {
+      console.error("Auth check error:", error)
+      toast.error("Authentication failed")
+      router.push("/login")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const fetchUsers = async () => {
+    try {
+      const { data, error } = await supabase.from("users").select("*").order("created_at", { ascending: false })
+
+      if (error) {
+        console.error("Fetch users error:", error)
+        throw error
+      }
+
+      setUsers(data || [])
+    } catch (error: any) {
+      console.error("Failed to fetch users:", error)
+      toast.error("Failed to fetch users: " + (error.message || "Unknown error"))
+    }
+  }
+
+  const fetchAppointments = async () => {
+    try {
+      const appointmentsData = await getAllAppointments()
+      setAppointments(appointmentsData)
+    } catch (error: any) {
+      console.error("Failed to fetch appointments:", error)
+      toast.error("Failed to fetch appointments")
+    }
+  }
+
+  const filterUsers = () => {
+    let filtered = users
+
+    if (searchTerm) {
+      filtered = filtered.filter(
+        (user) =>
+          user.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          user.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          user.email.toLowerCase().includes(searchTerm.toLowerCase()),
+      )
+    }
+
+    if (roleFilter !== "all") {
+      filtered = filtered.filter((user) => user.role === roleFilter)
+    }
+
+    setFilteredUsers(filtered)
+  }
+
+  const handleSignOut = async () => {
+    try {
+      await signOut()
+      router.push("/login")
+    } catch (error: any) {
+      toast.error("Failed to sign out")
+    }
+  }
+
+  const handleUserCreated = () => {
+    fetchUsers()
+  }
+
+  const handleRoleUpdate = async (userId: string, newRole: string) => {
+    try {
+      await updateUserRole(userId, newRole as "doctor" | "staff" | "patient")
+      toast.success("User role updated successfully!")
+      fetchUsers()
+      setEditingUserId(null)
+    } catch (error: any) {
+      toast.error("Failed to update user role: " + (error.message || "Unknown error"))
+    }
+  }
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!confirm("Are you sure you want to delete this user? This action cannot be undone.")) {
+      return
+    }
+
+    setDeletingUserId(userId)
+    try {
+      await deleteUser(userId)
+      toast.success("User deleted successfully!")
+      fetchUsers()
+    } catch (error: any) {
+      toast.error("Failed to delete user: " + (error.message || "Unknown error"))
+    } finally {
+      setDeletingUserId(null)
+    }
+  }
+
+  const handleAppointmentAction = async (appointmentId: string, action: "approved" | "rejected") => {
+    setProcessingAppointments((prev) => new Set(prev).add(appointmentId))
+
+    try {
+      await updateAppointmentStatus(appointmentId, action)
+      toast.success(`Appointment ${action} successfully!`)
+      fetchAppointments()
+      fetchPaymentStats()
+    } catch (error: any) {
+      toast.error(`Failed to ${action.slice(0, -1)} appointment: ` + (error.message || "Unknown error"))
+    } finally {
+      setProcessingAppointments((prev) => {
+        const newSet = new Set(prev)
+        newSet.delete(appointmentId)
+        return newSet
+      })
+    }
+  }
+
+  const handleCleanupOrphanedUsers = async () => {
+    if (!confirm("This will remove any authentication users that don't have profiles. Continue?")) {
+      return
+    }
+
+    setIsCleaningUp(true)
+    try {
+      await cleanupOrphanedAuthUsers()
+      toast.success("Cleanup completed successfully!")
+    } catch (error: any) {
+      toast.error("Cleanup failed: " + (error.message || "Unknown error"))
+    } finally {
+      setIsCleaningUp(false)
+    }
+  }
+
+  const getRoleBadgeColor = (role: string) => {
+    switch (role) {
+      case "admin":
+        return "bg-red-100 text-red-800 border-red-200"
+      case "doctor":
+        return "bg-green-100 text-green-800 border-green-200"
+      case "staff":
+        return "bg-blue-100 text-blue-800 border-blue-200"
+      case "patient":
+        return "bg-gray-100 text-gray-800 border-gray-200"
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200"
+    }
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "pending":
+        return "bg-yellow-100 text-yellow-800"
+      case "approved":
+        return "bg-green-100 text-green-800"
+      case "rejected":
+        return "bg-red-100 text-red-800"
+      case "completed":
+        return "bg-blue-100 text-blue-800"
+      case "cancelled":
+        return "bg-gray-100 text-gray-800"
+      default:
+        return "bg-gray-100 text-gray-800"
+    }
+  }
+
+  const getPaymentStatusColor = (status: string) => {
+    switch (status) {
+      case "fully_paid":
+        return "bg-green-100 text-green-800"
+      case "partial_paid":
+        return "bg-yellow-100 text-yellow-800"
+      case "not_paid":
+        return "bg-red-100 text-red-800"
+      default:
+        return "bg-gray-100 text-gray-800"
+    }
+  }
+
+  const formatDate = (date: string) => {
+    return new Date(date).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })
+  }
+
+  const formatTime = (time: string) => {
+    return new Date(`2000-01-01T${time}`).toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    })
+  }
+
+  // Get payment for an appointment
+  const getAppointmentPayment = (appointmentId: string) => {
+    return payments.find((payment) => payment.appointment_id === appointmentId)
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
+  const pendingAppointments = appointments.filter((apt) => apt.status === "pending")
+
+  const handleCompleteAppointment = () => {
+    fetchAppointments()
+    fetchPaymentStats()
+    fetchPayments()
+    setCompleteModalAppointment(null)
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <Link href="/" className="flex items-center text-gray-600 hover:text-gray-800">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Home
+            </Link>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-800">Admin Dashboard</h1>
+              <p className="text-gray-600">Welcome back, {currentUser?.profile?.first_name}</p>
+            </div>
+          </div>
+          <Button variant="outline" onClick={handleSignOut} className="flex items-center bg-transparent">
+            <LogOut className="w-4 h-4 mr-2" />
+            Sign Out
+          </Button>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="p-6">
+        {/* Stats Cards - Above Tabs */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 bg-blue-100 rounded-lg">
+                  <Calendar className="w-6 h-6 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Pending Appointments</p>
+                  <p className="text-3xl font-bold">{pendingAppointments.length}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 bg-green-100 rounded-lg">
+                  <IndianRupee className="w-6 h-6 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Total Revenue</p>
+                  <p className="text-3xl font-bold">₹{paymentStats.totalRevenue.toFixed(2)}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 bg-yellow-100 rounded-lg">
+                  <AlertTriangle className="w-6 h-6 text-yellow-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Outstanding Balance</p>
+                  <p className="text-3xl font-bold">₹{paymentStats.totalOutstanding.toFixed(2)}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 bg-purple-100 rounded-lg">
+                  <Users className="w-6 h-6 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Total Users</p>
+                  <p className="text-3xl font-bold">{users.length}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Enhanced Navigation Tabs */}
+        <Tabs defaultValue="overview" className="space-y-8">
+          <TabsList className="grid w-full grid-cols-4 max-w-3xl mx-auto h-16 p-2 bg-gray-100 rounded-xl">
+            <TabsTrigger
+              value="overview"
+              className="flex items-center justify-center space-x-2 h-12 text-base font-medium rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all duration-200"
+            >
+              <CalendarDays className="w-5 h-5" />
+              <span>Overview</span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="appointments"
+              className="flex items-center justify-center space-x-2 h-12 text-base font-medium rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all duration-200 relative"
+            >
+              <Calendar className="w-5 h-5" />
+              <span>Appointments</span>
+              {pendingAppointments.length > 0 && (
+                <Badge className="ml-1 bg-red-500 text-white text-xs px-2 py-0 min-w-[1.5rem] h-6 rounded-full">
+                  {pendingAppointments.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger
+              value="patients"
+              className="flex items-center justify-center space-x-2 h-12 text-base font-medium rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all duration-200"
+            >
+              <Users className="w-5 h-5" />
+              <span>Patient Management</span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="users"
+              className="flex items-center justify-center space-x-2 h-12 text-base font-medium rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all duration-200"
+            >
+              <UserCheck className="w-5 h-5" />
+              <span>User Management</span>
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="space-y-6">
+            {/* Quick Actions and Recent Users */}
+            <div className="grid lg:grid-cols-2 gap-6">
+              {/* Quick Actions */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Quick Actions</CardTitle>
+                  <p className="text-sm text-gray-600">Common administrative tasks</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4">
+                    <Link href="/admin/all-appointments" className="w-full">
+                      <Button variant="outline" className="h-20 flex-col space-y-2 bg-transparent w-full">
+                        <CalendarDays className="w-6 h-6 text-blue-600" />
+                        <div className="text-center">
+                          <p className="font-medium">All Appointments</p>
+                          <p className="text-xs text-gray-500">View and manage all appointments</p>
+                        </div>
+                      </Button>
+                    </Link>
+
+                    <Link href="/admin/patient-records" className="w-full">
+                      <Button variant="outline" className="h-20 flex-col space-y-2 bg-transparent w-full">
+                        <FileText className="w-6 h-6 text-green-600" />
+                        <div className="text-center">
+                          <p className="font-medium">Patient Records</p>
+                          <p className="text-xs text-gray-500">View patient information</p>
+                        </div>
+                      </Button>
+                    </Link>
+
+                    <Link href="/admin/settings">
+                      <Button variant="outline" className="h-20 flex-col space-y-2 bg-transparent w-full">
+                        <Settings className="w-6 h-6 text-gray-600" />
+                        <div className="text-center">
+                          <p className="font-medium">Clinic Settings</p>
+                          <p className="text-xs text-gray-500">Configure clinic details</p>
+                        </div>
+                      </Button>
+                    </Link>
+
+                    <Button
+                      variant="outline"
+                      className="h-20 flex-col space-y-2 bg-transparent"
+                      onClick={() => setIsWalkInModalOpen(true)}
+                    >
+                      <Plus className="w-6 h-6 text-red-600" />
+                      <div className="text-center">
+                        <p className="font-medium">Walk-in Appointment</p>
+                        <p className="text-xs text-gray-500">Schedule urgent care</p>
+                      </div>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Recent Users */}
+              <Card>
+                <CardHeader className="flex flex-row items-center space-y-0">
+                  <div className="flex-1">
+                    <CardTitle className="flex items-center">
+                      <Users className="w-5 h-5 mr-2" />
+                      Recent Users
+                    </CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {users.slice(0, 5).length > 0 ? (
+                    <div className="space-y-3">
+                      {users.slice(0, 5).map((user) => (
+                        <div key={user.id} className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                              <span className="text-blue-600 font-semibold text-sm">
+                                {user.first_name[0]}
+                                {user.last_name[0]}
+                              </span>
+                            </div>
+                            <div>
+                              <p className="font-medium text-sm">
+                                {user.first_name} {user.last_name}
+                              </p>
+                              <p className="text-xs text-gray-500">{user.email}</p>
+                            </div>
+                          </div>
+                          <Badge className={`text-xs ${getRoleBadgeColor(user.role)}`}>
+                            {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <UsersIcon className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                      <p className="text-gray-600">No users yet</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="appointments">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <CalendarIcon className="w-5 h-5" />
+                    <CardTitle>Appointments Management</CardTitle>
+                    <Badge variant="secondary">{appointments.length} total</Badge>
+                  </div>
+                  <Select value={appointmentFilter} onValueChange={setAppointmentFilter}>
+                    <SelectTrigger className="w-40">
+                      <SelectValue placeholder="All Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="approved">Approved</SelectItem>
+                      <SelectItem value="rejected">Rejected</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {filteredAppointments.length > 0 ? (
+                  <div className="space-y-4">
+                    {filteredAppointments
+                      .sort((a, b) => {
+                        const statusOrder = { pending: 0, approved: 1, outstanding: 2, completed: 3, cancelled: 4 }
+                        const aOrder = statusOrder[a.status] ?? 5
+                        const bOrder = statusOrder[b.status] ?? 5
+                        if (aOrder !== bOrder) return aOrder - bOrder
+                        // Secondary sort by date (newest first)
+                        return new Date(b.appointment_date).getTime() - new Date(a.appointment_date).getTime()
+                      })
+                      .map((appointment) => {
+                        const payment = getAppointmentPayment(appointment.id)
+                        return (
+                          <div key={appointment.id} className="p-4 border rounded-lg">
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center space-x-4">
+                                  <div>
+                                    <h3 className="font-medium">{appointment.appointment_type}</h3>
+                                    <p className="text-sm text-gray-600">
+                                      {appointment.patient?.first_name} {appointment.patient?.last_name}
+                                    </p>
+                                    <p className="text-sm text-gray-500">{appointment.patient?.email}</p>
+                                  </div>
+                                  <div className="text-center">
+                                    <p className="text-sm font-medium">{formatDate(appointment.appointment_date)}</p>
+                                    <p className="text-sm text-gray-600">{formatTime(appointment.appointment_time)}</p>
+                                  </div>
+                                  {appointment.notes && (
+                                    <div className="max-w-xs">
+                                      <p className="text-sm text-gray-600">
+                                        <strong>Notes:</strong> {appointment.notes}
+                                      </p>
+                                    </div>
+                                  )}
+                                  {/* Payment Status */}
+                                  {payment && (
+                                    <div className="text-center">
+                                      <p className="text-xs text-gray-500 mb-1">Payment</p>
+                                      <Badge className={`text-xs ${getPaymentStatusColor(payment.payment_status)}`}>
+                                        {payment.payment_status === "fully_paid" && "Fully Paid"}
+                                        {payment.payment_status === "partial_paid" && "Partial Paid"}
+                                        {payment.payment_status === "not_paid" && "Not Paid"}
+                                      </Badge>
+                                      {payment.payment_status === "partial_paid" && (
+                                        <p className="text-xs text-gray-500 mt-1">
+                                          ₹{payment.paid_amount.toFixed(2)} / ₹{payment.bill_amount.toFixed(2)}
+                                        </p>
+                                      )}
+                                      {appointment.status === "completed" && (
+                                        <>
+                                          <p className="text-xs text-gray-500 mt-1">
+                                            Bill Amount: ₹{payment.bill_amount.toFixed(2)}
+                                          </p>
+                                          <p className="text-xs text-gray-500">
+                                            Paid Amount: ₹{payment.paid_amount.toFixed(2)}
+                                          </p>
+                                          {payment.bill_amount > payment.paid_amount && (
+                                            <p className="text-xs text-red-600 font-medium">
+                                              Outstanding: ₹{(payment.bill_amount - payment.paid_amount).toFixed(2)}
+                                            </p>
+                                          )}
+                                        </>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-3">
+                                {appointment.status === "pending" && (
+                                  <div className="flex space-x-2">
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleAppointmentAction(appointment.id, "approved")}
+                                      disabled={processingAppointments.has(appointment.id)}
+                                      className="bg-green-600 hover:bg-green-700 text-white"
+                                    >
+                                      {processingAppointments.has(appointment.id) ? (
+                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                      ) : (
+                                        <Check className="w-4 h-4" />
+                                      )}
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleAppointmentAction(appointment.id, "rejected")}
+                                      disabled={processingAppointments.has(appointment.id)}
+                                      className="border-red-600 text-red-600 hover:bg-red-50"
+                                    >
+                                      {processingAppointments.has(appointment.id) ? (
+                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
+                                      ) : (
+                                        <X className="w-4 h-4" />
+                                      )}
+                                    </Button>
+                                  </div>
+                                )}
+                                {appointment.status === "approved" && (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => setCompleteModalAppointment(appointment)}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                                  >
+                                    Complete
+                                  </Button>
+                                )}
+                                {/* Update Payment Button for Partial Payments */}
+                                {payment && payment.payment_status === "partial_paid" && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setCompleteModalAppointment(appointment)}
+                                    className="border-yellow-600 text-yellow-600 hover:bg-yellow-50"
+                                  >
+                                    <CreditCard className="w-4 h-4 mr-1" />
+                                    Update Payment
+                                  </Button>
+                                )}
+                                <Badge className={getStatusColor(appointment.status)}>
+                                  {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
+                                </Badge>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <CalendarIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No appointments found</h3>
+                    <p className="text-gray-600">
+                      {appointmentFilter !== "all"
+                        ? `No ${appointmentFilter} appointments at the moment`
+                        : "No appointments have been scheduled yet"}
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="patients">
+            <PatientManagementSection
+              currentUserId={currentUser?.profile?.id || ""}
+              currentUserRole={currentUser?.profile?.role || ""}
+            />
+          </TabsContent>
+
+          <TabsContent value="users">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <UsersIcon className="w-5 h-5" />
+                    <CardTitle>User Management</CardTitle>
+                    <Badge variant="secondary">{users.length} total</Badge>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={handleCleanupOrphanedUsers}
+                      disabled={isCleaningUp}
+                      className="bg-transparent"
+                    >
+                      {isCleaningUp ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
+                      ) : (
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                      )}
+                      Cleanup
+                    </Button>
+                    <Button onClick={() => setIsCreateModalOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+                      <UserPlus className="w-4 h-4 mr-2" />
+                      Create User
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {/* Search and Filter */}
+                <div className="flex gap-4 mb-6">
+                  <div className="flex-1 relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                      placeholder="Search users..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  <Select value={roleFilter} onValueChange={setRoleFilter}>
+                    <SelectTrigger className="w-40">
+                      <SelectValue placeholder="All Roles" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Roles</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="doctor">Doctor</SelectItem>
+                      <SelectItem value="staff">Staff</SelectItem>
+                      <SelectItem value="patient">Patient</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Users List */}
+                {filteredUsers.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                      <UsersIcon className="w-8 h-8 text-gray-400" />
+                    </div>
+                    <h3 className="text-lg font-semibold mb-2">No users found</h3>
+                    <p className="text-gray-600">
+                      {searchTerm || roleFilter !== "all"
+                        ? "Try adjusting your search or filter criteria"
+                        : "Create your first user to get started"}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {filteredUsers.map((user) => (
+                      <div
+                        key={user.id}
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
+                      >
+                        <div className="flex items-center space-x-4">
+                          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                            <span className="text-blue-600 font-semibold">
+                              {user.first_name[0]}
+                              {user.last_name[0]}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="font-medium">
+                              {user.first_name} {user.last_name}
+                            </p>
+                            <p className="text-sm text-gray-600">{user.email}</p>
+                            {user.phone && <p className="text-sm text-gray-500">{user.phone}</p>}
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-4">
+                          {editingUserId === user.id ? (
+                            <div className="flex items-center space-x-2">
+                              <Select value={user.role} onValueChange={(value) => handleRoleUpdate(user.id, value)}>
+                                <SelectTrigger className="w-32">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="patient">Patient</SelectItem>
+                                  <SelectItem value="doctor">Doctor</SelectItem>
+                                  <SelectItem value="staff">Staff</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Button variant="outline" size="sm" onClick={() => setEditingUserId(null)}>
+                                Cancel
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              {user.role !== "admin" && (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setEditingUserId(user.id)}
+                                    className="text-blue-600 hover:text-blue-700"
+                                  >
+                                    Change Role
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDeleteUser(user.id)}
+                                    className="text-red-600 hover:text-red-700"
+                                    disabled={deletingUserId === user.id}
+                                  >
+                                    {deletingUserId === user.id ? (
+                                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
+                                    ) : (
+                                      <Trash2 className="w-4 h-4" />
+                                    )}
+                                  </Button>
+                                </>
+                              )}
+                              {user.role === "patient" && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setPatientProfileModal({ isOpen: true, patientId: user.id })}
+                                  className="text-green-600 hover:text-green-700"
+                                >
+                                  View Profile
+                                </Button>
+                              )}
+                              <Badge className={getRoleBadgeColor(user.role)}>
+                                {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                              </Badge>
+                            </>
+                          )}
+                          <p className="text-sm text-gray-500">{new Date(user.created_at).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      <CreateUserModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onUserCreated={handleUserCreated}
+      />
+      <CompleteAppointmentModal
+        isOpen={!!completeModalAppointment}
+        onClose={() => setCompleteModalAppointment(null)}
+        appointment={completeModalAppointment}
+        onAppointmentCompleted={handleCompleteAppointment}
+      />
+      <EmergencyAppointmentModal
+        isOpen={isWalkInModalOpen}
+        onClose={() => setIsWalkInModalOpen(false)}
+        onAppointmentCreated={() => {
+          fetchAppointments()
+          fetchPaymentStats()
+          setIsWalkInModalOpen(false)
+        }}
+      />
+      <PatientProfileModal
+        isOpen={patientProfileModal.isOpen}
+        onClose={() => setPatientProfileModal({ isOpen: false, patientId: "" })}
+        patientId={patientProfileModal.patientId}
+        currentUserId={currentUser?.profile?.id || ""}
+        currentUserRole={currentUser?.profile?.role || ""}
+      />
+    </div>
+  )
+}

@@ -30,12 +30,12 @@ export function EnhancedTimeSelector({
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([])
   const [isLoading, setIsLoading] = useState(false)
 
-  // Generate time slots from 10:00 AM to 10:00 PM (22:00)
+  // Generate time slots from 10:00 AM to 9:00 PM (21:00)
   const generateTimeSlots = (): TimeSlot[] => {
     const slots: TimeSlot[] = []
 
-    // Start from 10:00 AM (10:00) to 10:00 PM (22:00)
-    for (let hour = 10; hour <= 22; hour++) {
+    // Start from 10:00 AM (10:00) to 9:00 PM (21:00)
+    for (let hour = 10; hour <= 21; hour++) {
       // Add slots every 30 minutes
       for (let minute = 0; minute < 60; minute += 30) {
         const timeString = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`

@@ -340,80 +340,85 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b px-6 py-4">
+      <div className="bg-white border-b px-4 sm:px-6 py-3 sm:py-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3 sm:space-x-4">
             <Link href="/" className="flex items-center text-gray-600 hover:text-gray-800">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Home
+              <ArrowLeft className="w-5 h-5" />
+              <span className="sr-only">Back to Home</span>
             </Link>
             <div>
-              <h1 className="text-2xl font-bold text-gray-800">Admin Dashboard</h1>
-              <p className="text-gray-600">Welcome back, {currentUser?.profile?.first_name}</p>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Admin Dashboard</h1>
+              <p className="text-sm sm:text-base text-gray-600">Welcome back, {currentUser?.profile?.first_name}</p>
             </div>
           </div>
-          <Button variant="outline" onClick={handleSignOut} className="flex items-center bg-transparent">
-            <LogOut className="w-4 h-4 mr-2" />
-            Sign Out
+          <Button
+            variant="outline"
+            onClick={handleSignOut}
+            className="flex items-center bg-transparent p-2 sm:px-3 sm:py-2"
+            size="sm"
+          >
+            <LogOut className="w-4 h-4" />
+            <span className="sr-only sm:not-sr-only sm:ml-2">Sign Out</span>
           </Button>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         {/* Stats Cards - Above Tabs */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
           <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-4">
-                <div className="p-3 bg-blue-100 rounded-lg">
-                  <Calendar className="w-6 h-6 text-blue-600" />
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex items-center space-x-3 sm:space-x-4">
+                <div className="p-2 sm:p-3 bg-blue-100 rounded-lg">
+                  <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Pending Appointments</p>
-                  <p className="text-3xl font-bold">{pendingAppointments.length}</p>
+                  <p className="text-xs sm:text-sm text-gray-600">Pending Appointments</p>
+                  <p className="text-2xl sm:text-3xl font-bold">{pendingAppointments.length}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-4">
-                <div className="p-3 bg-green-100 rounded-lg">
-                  <IndianRupee className="w-6 h-6 text-green-600" />
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex items-center space-x-3 sm:space-x-4">
+                <div className="p-2 sm:p-3 bg-green-100 rounded-lg">
+                  <IndianRupee className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Total Revenue</p>
-                  <p className="text-3xl font-bold">₹{paymentStats.totalRevenue.toFixed(2)}</p>
+                  <p className="text-xs sm:text-sm text-gray-600">Total Revenue</p>
+                  <p className="text-2xl sm:text-3xl font-bold">₹{paymentStats.totalRevenue.toFixed(2)}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-4">
-                <div className="p-3 bg-yellow-100 rounded-lg">
-                  <AlertTriangle className="w-6 h-6 text-yellow-600" />
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex items-center space-x-3 sm:space-x-4">
+                <div className="p-2 sm:p-3 bg-yellow-100 rounded-lg">
+                  <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Outstanding Balance</p>
-                  <p className="text-3xl font-bold">₹{paymentStats.totalOutstanding.toFixed(2)}</p>
+                  <p className="text-xs sm:text-sm text-gray-600">Outstanding Balance</p>
+                  <p className="text-2xl sm:text-3xl font-bold">₹{paymentStats.totalOutstanding.toFixed(2)}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-4">
-                <div className="p-3 bg-purple-100 rounded-lg">
-                  <Users className="w-6 h-6 text-purple-600" />
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex items-center space-x-3 sm:space-x-4">
+                <div className="p-2 sm:p-3 bg-purple-100 rounded-lg">
+                  <Users className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Total Users</p>
-                  <p className="text-3xl font-bold">{users.length}</p>
+                  <p className="text-xs sm:text-sm text-gray-600">Total Users</p>
+                  <p className="text-2xl sm:text-3xl font-bold">{users.length}</p>
                 </div>
               </div>
             </CardContent>
@@ -421,40 +426,44 @@ export default function AdminDashboard() {
         </div>
 
         {/* Enhanced Navigation Tabs */}
-        <Tabs defaultValue="overview" className="space-y-8">
-          <TabsList className="grid w-full grid-cols-4 max-w-3xl mx-auto h-16 p-2 bg-gray-100 rounded-xl">
+        <Tabs defaultValue="overview" className="space-y-6 sm:space-y-8">
+          <TabsList className="grid w-full grid-cols-4 max-w-3xl mx-auto h-14 sm:h-16 p-1 sm:p-2 bg-gray-100 rounded-xl">
             <TabsTrigger
               value="overview"
-              className="flex items-center justify-center space-x-2 h-12 text-base font-medium rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all duration-200"
+              className="flex items-center justify-center space-x-1 h-10 sm:h-12 text-xs sm:text-sm font-medium rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all duration-200"
             >
-              <CalendarDays className="w-5 h-5" />
-              <span>Overview</span>
+              <CalendarDays className="w-4 h-4" />
+              <span className="hidden sm:inline">Overview</span>
+              <span className="sm:hidden">Home</span>
             </TabsTrigger>
             <TabsTrigger
               value="appointments"
-              className="flex items-center justify-center space-x-2 h-12 text-base font-medium rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all duration-200 relative"
+              className="flex items-center justify-center space-x-1 h-10 sm:h-12 text-xs sm:text-sm font-medium rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all duration-200 relative"
             >
-              <Calendar className="w-5 h-5" />
-              <span>Appointments</span>
+              <Calendar className="w-4 h-4" />
+              <span className="hidden sm:inline">Appointments</span>
+              <span className="sm:hidden">Appts</span>
               {pendingAppointments.length > 0 && (
-                <Badge className="ml-1 bg-red-500 text-white text-xs px-2 py-0 min-w-[1.5rem] h-6 rounded-full">
+                <Badge className="ml-1 bg-red-500 text-white text-xs px-1 py-0 min-w-[1.25rem] h-5 rounded-full">
                   {pendingAppointments.length}
                 </Badge>
               )}
             </TabsTrigger>
             <TabsTrigger
               value="patients"
-              className="flex items-center justify-center space-x-2 h-12 text-base font-medium rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all duration-200"
+              className="flex items-center justify-center space-x-1 h-10 sm:h-12 text-xs sm:text-sm font-medium rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all duration-200"
             >
-              <Users className="w-5 h-5" />
-              <span>Patient Management</span>
+              <Users className="w-4 h-4" />
+              <span className="hidden sm:inline">Patient Management</span>
+              <span className="sm:hidden">Patients</span>
             </TabsTrigger>
             <TabsTrigger
               value="users"
-              className="flex items-center justify-center space-x-2 h-12 text-base font-medium rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all duration-200"
+              className="flex items-center justify-center space-x-1 h-10 sm:h-12 text-xs sm:text-sm font-medium rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all duration-200"
             >
-              <UserCheck className="w-5 h-5" />
-              <span>User Management</span>
+              <UserCheck className="w-4 h-4" />
+              <span className="hidden sm:inline">User Management</span>
+              <span className="sm:hidden">Users</span>
             </TabsTrigger>
           </TabsList>
 
@@ -468,46 +477,55 @@ export default function AdminDashboard() {
                   <p className="text-sm text-gray-600">Common administrative tasks</p>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4">
                     <Link href="/admin/all-appointments" className="w-full">
-                      <Button variant="outline" className="h-20 flex-col space-y-2 bg-transparent w-full">
-                        <CalendarDays className="w-6 h-6 text-blue-600" />
+                      <Button
+                        variant="outline"
+                        className="h-16 sm:h-20 flex-col space-y-1 sm:space-y-2 bg-transparent w-full text-xs sm:text-sm"
+                      >
+                        <CalendarDays className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
                         <div className="text-center">
                           <p className="font-medium">All Appointments</p>
-                          <p className="text-xs text-gray-500">View and manage all appointments</p>
+                          <p className="text-xs text-gray-500 hidden sm:block">View and manage all appointments</p>
                         </div>
                       </Button>
                     </Link>
 
                     <Link href="/admin/patient-records" className="w-full">
-                      <Button variant="outline" className="h-20 flex-col space-y-2 bg-transparent w-full">
-                        <FileText className="w-6 h-6 text-green-600" />
+                      <Button
+                        variant="outline"
+                        className="h-16 sm:h-20 flex-col space-y-1 sm:space-y-2 bg-transparent w-full text-xs sm:text-sm"
+                      >
+                        <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
                         <div className="text-center">
                           <p className="font-medium">Patient Records</p>
-                          <p className="text-xs text-gray-500">View patient information</p>
+                          <p className="text-xs text-gray-500 hidden sm:block">View patient information</p>
                         </div>
                       </Button>
                     </Link>
 
                     <Link href="/admin/settings">
-                      <Button variant="outline" className="h-20 flex-col space-y-2 bg-transparent w-full">
-                        <Settings className="w-6 h-6 text-gray-600" />
+                      <Button
+                        variant="outline"
+                        className="h-16 sm:h-20 flex-col space-y-1 sm:space-y-2 bg-transparent w-full text-xs sm:text-sm"
+                      >
+                        <Settings className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />
                         <div className="text-center">
                           <p className="font-medium">Clinic Settings</p>
-                          <p className="text-xs text-gray-500">Configure clinic details</p>
+                          <p className="text-xs text-gray-500 hidden sm:block">Configure clinic details</p>
                         </div>
                       </Button>
                     </Link>
 
                     <Button
                       variant="outline"
-                      className="h-20 flex-col space-y-2 bg-transparent"
+                      className="h-16 sm:h-20 flex-col space-y-1 sm:space-y-2 bg-transparent text-xs sm:text-sm"
                       onClick={() => setIsWalkInModalOpen(true)}
                     >
-                      <Plus className="w-6 h-6 text-red-600" />
+                      <Plus className="w-5 h-5 sm:w-6 sm:h-6 text-red-600" />
                       <div className="text-center">
-                        <p className="font-medium">Walk-in Appointment</p>
-                        <p className="text-xs text-gray-500">Schedule urgent care</p>
+                        <p className="font-medium">Walk-in</p>
+                        <p className="text-xs text-gray-500 hidden sm:block">Schedule urgent care</p>
                       </div>
                     </Button>
                   </div>
@@ -570,7 +588,7 @@ export default function AdminDashboard() {
                     <Badge variant="secondary">{appointments.length} total</Badge>
                   </div>
                   <Select value={appointmentFilter} onValueChange={setAppointmentFilter}>
-                    <SelectTrigger className="w-40">
+                    <SelectTrigger className="w-32 sm:w-40">
                       <SelectValue placeholder="All Status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -599,23 +617,145 @@ export default function AdminDashboard() {
                       .map((appointment) => {
                         const payment = getAppointmentPayment(appointment.id)
                         return (
-                          <div key={appointment.id} className="p-4 border rounded-lg">
-                            <div className="flex items-center justify-between">
+                          <div key={appointment.id} className="p-3 sm:p-4 border rounded-lg">
+                            {/* Mobile Layout */}
+                            <div className="block sm:hidden space-y-3">
+                              {/* Header with appointment type and status */}
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <h3 className="font-medium text-base truncate">{appointment.appointment_type}</h3>
+                                  <p className="text-sm text-gray-600 truncate">
+                                    {appointment.patient?.first_name} {appointment.patient?.last_name}
+                                  </p>
+                                  <p className="text-xs text-gray-500 truncate">{appointment.patient?.email}</p>
+                                </div>
+                                <Badge className={`${getStatusColor(appointment.status)} text-xs ml-2 flex-shrink-0`}>
+                                  {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
+                                </Badge>
+                              </div>
+
+                              {/* Date and Time */}
+                              <div className="flex items-center justify-between text-sm">
+                                <div>
+                                  <p className="font-medium">{formatDate(appointment.appointment_date)}</p>
+                                  <p className="text-gray-600">{formatTime(appointment.appointment_time)}</p>
+                                </div>
+                                {payment && (
+                                  <div className="text-right">
+                                    <Badge className={`${getPaymentStatusColor(payment.payment_status)} text-xs`}>
+                                      {payment.payment_status === "fully_paid" && "Fully Paid"}
+                                      {payment.payment_status === "partial_paid" && "Partial Paid"}
+                                      {payment.payment_status === "not_paid" && "Not Paid"}
+                                    </Badge>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Payment Details */}
+                              {payment && appointment.status === "completed" && (
+                                <div className="bg-gray-50 p-2 rounded text-xs space-y-1">
+                                  <div className="flex justify-between">
+                                    <span>Bill Amount:</span>
+                                    <span>₹{payment.bill_amount.toFixed(2)}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>Paid Amount:</span>
+                                    <span>₹{payment.paid_amount.toFixed(2)}</span>
+                                  </div>
+                                  {payment.bill_amount > payment.paid_amount && (
+                                    <div className="flex justify-between text-red-600 font-medium">
+                                      <span>Outstanding:</span>
+                                      <span>₹{(payment.bill_amount - payment.paid_amount).toFixed(2)}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Notes */}
+                              {appointment.notes && (
+                                <div className="text-sm">
+                                  <span className="font-medium text-gray-700">Notes: </span>
+                                  <span className="text-gray-600">{appointment.notes}</span>
+                                </div>
+                              )}
+
+                              {/* Action Buttons */}
+                              <div className="flex flex-wrap gap-2">
+                                {appointment.status === "pending" && (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleAppointmentAction(appointment.id, "approved")}
+                                      disabled={processingAppointments.has(appointment.id)}
+                                      className="bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1 h-7"
+                                    >
+                                      {processingAppointments.has(appointment.id) ? (
+                                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                                      ) : (
+                                        <>
+                                          <Check className="w-3 h-3 mr-1" />
+                                          Approve
+                                        </>
+                                      )}
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleAppointmentAction(appointment.id, "rejected")}
+                                      disabled={processingAppointments.has(appointment.id)}
+                                      className="border-red-600 text-red-600 hover:bg-red-50 text-xs px-3 py-1 h-7"
+                                    >
+                                      {processingAppointments.has(appointment.id) ? (
+                                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-600"></div>
+                                      ) : (
+                                        <>
+                                          <X className="w-3 h-3 mr-1" />
+                                          Reject
+                                        </>
+                                      )}
+                                    </Button>
+                                  </>
+                                )}
+                                {appointment.status === "approved" && (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => setCompleteModalAppointment(appointment)}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1 h-7"
+                                  >
+                                    Complete
+                                  </Button>
+                                )}
+                                {payment && payment.payment_status === "partial_paid" && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setCompleteModalAppointment(appointment)}
+                                    className="border-yellow-600 text-yellow-600 hover:bg-yellow-50 text-xs px-2 py-1 h-7"
+                                  >
+                                    <CreditCard className="w-3 h-3 mr-1" />
+                                    Update Payment
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Desktop Layout */}
+                            <div className="hidden sm:flex sm:items-center justify-between">
                               <div className="flex-1">
-                                <div className="flex items-center space-x-4">
-                                  <div>
-                                    <h3 className="font-medium">{appointment.appointment_type}</h3>
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                                  <div className="flex-1">
+                                    <h3 className="font-medium text-base">{appointment.appointment_type}</h3>
                                     <p className="text-sm text-gray-600">
                                       {appointment.patient?.first_name} {appointment.patient?.last_name}
                                     </p>
                                     <p className="text-sm text-gray-500">{appointment.patient?.email}</p>
                                   </div>
-                                  <div className="text-center">
+                                  <div className="text-left sm:text-center">
                                     <p className="text-sm font-medium">{formatDate(appointment.appointment_date)}</p>
                                     <p className="text-sm text-gray-600">{formatTime(appointment.appointment_time)}</p>
                                   </div>
                                   {appointment.notes && (
-                                    <div className="max-w-xs">
+                                    <div className="max-w-full sm:max-w-xs">
                                       <p className="text-sm text-gray-600">
                                         <strong>Notes:</strong> {appointment.notes}
                                       </p>
@@ -623,7 +763,7 @@ export default function AdminDashboard() {
                                   )}
                                   {/* Payment Status */}
                                   {payment && (
-                                    <div className="text-center">
+                                    <div className="text-left sm:text-center">
                                       <p className="text-xs text-gray-500 mb-1">Payment</p>
                                       <Badge className={`text-xs ${getPaymentStatusColor(payment.payment_status)}`}>
                                         {payment.payment_status === "fully_paid" && "Fully Paid"}
@@ -654,9 +794,9 @@ export default function AdminDashboard() {
                                   )}
                                 </div>
                               </div>
-                              <div className="flex items-center space-x-3">
+                              <div className="flex flex-row sm:flex-col items-center gap-2 sm:gap-3">
                                 {appointment.status === "pending" && (
-                                  <div className="flex space-x-2">
+                                  <div className="flex gap-2">
                                     <Button
                                       size="sm"
                                       onClick={() => handleAppointmentAction(appointment.id, "approved")}
@@ -739,7 +879,7 @@ export default function AdminDashboard() {
           <TabsContent value="users">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex items-center space-x-2">
                     <UsersIcon className="w-5 h-5" />
                     <CardTitle>User Management</CardTitle>
@@ -750,7 +890,8 @@ export default function AdminDashboard() {
                       variant="outline"
                       onClick={handleCleanupOrphanedUsers}
                       disabled={isCleaningUp}
-                      className="bg-transparent"
+                      className="bg-transparent text-xs sm:text-sm"
+                      size="sm"
                     >
                       {isCleaningUp ? (
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
@@ -759,7 +900,11 @@ export default function AdminDashboard() {
                       )}
                       Cleanup
                     </Button>
-                    <Button onClick={() => setIsCreateModalOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+                    <Button
+                      onClick={() => setIsCreateModalOpen(true)}
+                      className="bg-blue-600 hover:bg-blue-700 text-xs sm:text-sm"
+                      size="sm"
+                    >
                       <UserPlus className="w-4 h-4 mr-2" />
                       Create User
                     </Button>
@@ -768,7 +913,7 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent>
                 {/* Search and Filter */}
-                <div className="flex gap-4 mb-6">
+                <div className="flex flex-col sm:flex-row gap-4 mb-6">
                   <div className="flex-1 relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                     <Input
@@ -779,7 +924,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <Select value={roleFilter} onValueChange={setRoleFilter}>
-                    <SelectTrigger className="w-40">
+                    <SelectTrigger className="w-full sm:w-40">
                       <SelectValue placeholder="All Roles" />
                     </SelectTrigger>
                     <SelectContent>
@@ -810,28 +955,43 @@ export default function AdminDashboard() {
                     {filteredUsers.map((user) => (
                       <div
                         key={user.id}
-                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
+                        className="p-3 sm:p-4 border rounded-lg hover:bg-gray-50 space-y-3 sm:space-y-0"
                       >
-                        <div className="flex items-center space-x-4">
-                          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                            <span className="text-blue-600 font-semibold">
-                              {user.first_name[0]}
-                              {user.last_name[0]}
-                            </span>
+                        {/* Mobile Layout */}
+                        <div className="block sm:hidden">
+                          {/* User Info */}
+                          <div className="flex items-center space-x-3 mb-3">
+                            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                              <span className="text-blue-600 font-semibold text-sm">
+                                {user.first_name[0]}
+                                {user.last_name[0]}
+                              </span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm truncate">
+                                {user.first_name} {user.last_name}
+                              </p>
+                              <p className="text-xs text-gray-600 truncate">{user.email}</p>
+                              {user.phone && <p className="text-xs text-gray-500 truncate">{user.phone}</p>}
+                            </div>
+                            <div className="flex flex-col items-end space-y-1">
+                              <Badge className={`text-xs ${getRoleBadgeColor(user.role)}`}>
+                                {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                              </Badge>
+                              <p className="text-xs text-gray-500">
+                                {new Date(user.created_at).toLocaleDateString("en-US", {
+                                  month: "short",
+                                  day: "numeric",
+                                })}
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-medium">
-                              {user.first_name} {user.last_name}
-                            </p>
-                            <p className="text-sm text-gray-600">{user.email}</p>
-                            {user.phone && <p className="text-sm text-gray-500">{user.phone}</p>}
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-4">
+
+                          {/* Actions */}
                           {editingUserId === user.id ? (
                             <div className="flex items-center space-x-2">
                               <Select value={user.role} onValueChange={(value) => handleRoleUpdate(user.id, value)}>
-                                <SelectTrigger className="w-32">
+                                <SelectTrigger className="flex-1 h-8 text-xs">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -840,53 +1000,138 @@ export default function AdminDashboard() {
                                   <SelectItem value="staff">Staff</SelectItem>
                                 </SelectContent>
                               </Select>
-                              <Button variant="outline" size="sm" onClick={() => setEditingUserId(null)}>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setEditingUserId(null)}
+                                className="h-8 px-2 text-xs"
+                              >
                                 Cancel
                               </Button>
                             </div>
                           ) : (
-                            <>
-                              {user.role !== "admin" && (
-                                <>
+                            user.role !== "admin" && (
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-2">
                                   <Button
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => setEditingUserId(user.id)}
-                                    className="text-blue-600 hover:text-blue-700"
+                                    className="text-blue-600 hover:text-blue-700 h-8 px-2 text-xs"
                                   >
                                     Change Role
                                   </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleDeleteUser(user.id)}
-                                    className="text-red-600 hover:text-red-700"
-                                    disabled={deletingUserId === user.id}
-                                  >
-                                    {deletingUserId === user.id ? (
-                                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
-                                    ) : (
-                                      <Trash2 className="w-4 h-4" />
-                                    )}
-                                  </Button>
-                                </>
-                              )}
-                              {user.role === "patient" && (
+                                  {user.role === "patient" && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => setPatientProfileModal({ isOpen: true, patientId: user.id })}
+                                      className="text-green-600 hover:text-green-700 h-8 px-2 text-xs"
+                                    >
+                                      View Profile
+                                    </Button>
+                                  )}
+                                </div>
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => setPatientProfileModal({ isOpen: true, patientId: user.id })}
-                                  className="text-green-600 hover:text-green-700"
+                                  onClick={() => handleDeleteUser(user.id)}
+                                  className="text-red-600 hover:text-red-700 h-8 w-8 p-0"
+                                  disabled={deletingUserId === user.id}
                                 >
-                                  View Profile
+                                  {deletingUserId === user.id ? (
+                                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-600"></div>
+                                  ) : (
+                                    <Trash2 className="w-3 h-3" />
+                                  )}
                                 </Button>
-                              )}
-                              <Badge className={getRoleBadgeColor(user.role)}>
-                                {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                              </Badge>
-                            </>
+                              </div>
+                            )
                           )}
-                          <p className="text-sm text-gray-500">{new Date(user.created_at).toLocaleDateString()}</p>
+                        </div>
+
+                        {/* Desktop Layout */}
+                        <div className="hidden sm:flex sm:items-center justify-between">
+                          <div className="flex items-center space-x-4">
+                            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                              <span className="text-blue-600 font-semibold">
+                                {user.first_name[0]}
+                                {user.last_name[0]}
+                              </span>
+                            </div>
+                            <div>
+                              <p className="font-medium">
+                                {user.first_name} {user.last_name}
+                              </p>
+                              <p className="text-sm text-gray-600">{user.email}</p>
+                              {user.phone && <p className="text-sm text-gray-500">{user.phone}</p>}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            {editingUserId === user.id ? (
+                              <div className="flex items-center space-x-2">
+                                <Select value={user.role} onValueChange={(value) => handleRoleUpdate(user.id, value)}>
+                                  <SelectTrigger className="w-32">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="patient">Patient</SelectItem>
+                                    <SelectItem value="doctor">Doctor</SelectItem>
+                                    <SelectItem value="staff">Staff</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <Button variant="outline" size="sm" onClick={() => setEditingUserId(null)}>
+                                  Cancel
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-3">
+                                {user.role !== "admin" && (
+                                  <>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => setEditingUserId(user.id)}
+                                      className="text-blue-600 hover:text-blue-700 text-xs"
+                                    >
+                                      Change Role
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleDeleteUser(user.id)}
+                                      className="text-red-600 hover:text-red-700"
+                                      disabled={deletingUserId === user.id}
+                                    >
+                                      {deletingUserId === user.id ? (
+                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
+                                      ) : (
+                                        <Trash2 className="w-4 h-4" />
+                                      )}
+                                    </Button>
+                                  </>
+                                )}
+                                {user.role === "patient" && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setPatientProfileModal({ isOpen: true, patientId: user.id })}
+                                    className="text-green-600 hover:text-green-700 text-xs"
+                                  >
+                                    View Profile
+                                  </Button>
+                                )}
+                                <div className="flex items-center gap-2">
+                                  <Badge className={getRoleBadgeColor(user.role)}>
+                                    {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                                  </Badge>
+                                  <p className="text-sm text-gray-500">
+                                    {new Date(user.created_at).toLocaleDateString()}
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))}

@@ -194,7 +194,68 @@ export function PatientManagementSection({ currentUserId, currentUserRole }: Pat
             <div className="space-y-4">
               {filteredPatients.map((patient) => (
                 <div key={patient.id} className="p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center justify-between">
+                  {/* Mobile Layout */}
+                  <div className="block sm:hidden">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                          <span className="text-blue-600 font-semibold text-lg">
+                            {patient.first_name[0]}
+                            {patient.last_name[0]}
+                          </span>
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-base">
+                            {patient.first_name} {patient.last_name}
+                          </h3>
+                          <p className="text-sm text-gray-600">{patient.email}</p>
+                          {patient.phone && <p className="text-xs text-gray-500">{patient.phone}</p>}
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPatientProfileModal({ isOpen: true, patientId: patient.id })}
+                        className="bg-transparent"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                    </div>
+
+                    {/* Stats Grid for Mobile */}
+                    <div className="grid grid-cols-2 gap-3 mb-3">
+                      <div className="bg-blue-50 p-3 rounded-lg">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <Calendar className="w-4 h-4 text-blue-600" />
+                          <p className="text-xs font-medium text-blue-800">Appointments</p>
+                        </div>
+                        <p className="text-lg font-bold text-blue-900">{patient.appointmentCount}</p>
+                        {patient.upcomingAppointments > 0 && (
+                          <p className="text-xs text-blue-600">{patient.upcomingAppointments} upcoming</p>
+                        )}
+                      </div>
+
+                      <div className="bg-green-50 p-3 rounded-lg">
+                        <p className="text-xs font-medium text-green-800 mb-1">Total Paid</p>
+                        <p className="text-lg font-bold text-green-900">₹{patient.totalPaid.toFixed(2)}</p>
+                      </div>
+
+                      <div className="bg-yellow-50 p-3 rounded-lg">
+                        <p className="text-xs font-medium text-yellow-800 mb-1">Outstanding</p>
+                        <p className="text-lg font-bold text-yellow-900">₹{patient.outstandingBalance.toFixed(2)}</p>
+                      </div>
+
+                      <div className="bg-gray-50 p-3 rounded-lg">
+                        <p className="text-xs font-medium text-gray-800 mb-1">Last Visit</p>
+                        <p className="text-sm font-bold text-gray-900">
+                          {patient.lastVisit ? formatDate(patient.lastVisit) : "Never"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Desktop Layout */}
+                  <div className="hidden sm:flex items-center justify-between">
                     <div className="flex items-center space-x-4">
                       <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                         <span className="text-blue-600 font-semibold text-lg">

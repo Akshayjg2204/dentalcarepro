@@ -16,7 +16,6 @@ import {
   Calendar,
   CreditCard,
   LogOut,
-  Home,
   CalendarPlus,
   History,
   Edit,
@@ -25,6 +24,7 @@ import {
   IndianRupee,
   CheckCircle,
   Clock,
+  ArrowLeft,
 } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -140,6 +140,10 @@ export function PatientDashboard() {
     }
   }
 
+  const handleBookAppointment = () => {
+    router.push("/appointments")
+  }
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "pending":
@@ -170,6 +174,19 @@ export function PatientDashboard() {
     }
   }
 
+  const getPaymentStatusText = (status: string) => {
+    switch (status) {
+      case "fully_paid":
+        return "Paid"
+      case "partial_paid":
+        return "Partial"
+      case "not_paid":
+        return "Unpaid"
+      default:
+        return status
+    }
+  }
+
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString("en-US", {
       month: "short",
@@ -186,9 +203,16 @@ export function PatientDashboard() {
     })
   }
 
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+    }).format(amount || 0)
+  }
+
   // Function to clean appointment type by removing duration
   const cleanAppointmentType = (appointmentType: string) => {
-    // Remove patterns like (30 min), (45 min), etc.
+    if (!appointmentType) return "Treatment"
     return appointmentType.replace(/\s*$$\d+\s*min$$/gi, "").trim()
   }
 
@@ -230,66 +254,75 @@ export function PatientDashboard() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b px-6 py-4">
+      <div className="bg-white border-b px-4 sm:px-6 py-3 sm:py-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3 sm:space-x-4">
             <Link href="/" className="flex items-center text-gray-600 hover:text-gray-800">
-              <Home className="w-4 h-4 mr-2" />
-              Back Home
+              <ArrowLeft className="w-5 h-5" />
+              <span className="sr-only">Back Home</span>
             </Link>
             <div>
-              <h1 className="text-2xl font-bold text-gray-800">Patient Dashboard</h1>
-              <p className="text-gray-600">Welcome back, {currentUser?.profile?.first_name}</p>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Patient Dashboard</h1>
+              <p className="text-sm sm:text-base text-gray-600">Welcome back, {currentUser?.profile?.first_name}</p>
             </div>
           </div>
-          <Button variant="outline" onClick={handleSignOut} className="flex items-center bg-transparent">
-            <LogOut className="w-4 h-4 mr-2" />
-            Sign Out
+          <Button
+            variant="outline"
+            onClick={handleSignOut}
+            className="flex items-center bg-transparent p-2 sm:px-3 sm:py-2"
+            size="sm"
+          >
+            <LogOut className="w-4 h-4" />
+            <span className="sr-only sm:not-sr-only sm:ml-2">Sign Out</span>
           </Button>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
           <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-4">
-                <div className="p-3 bg-green-100 rounded-lg">
-                  <IndianRupee className="w-6 h-6 text-green-600" />
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex items-center space-x-3 sm:space-x-4">
+                <div className="p-2 sm:p-3 bg-green-100 rounded-lg">
+                  <IndianRupee className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600">Total Paid Amount</p>
-                  <p className="text-3xl font-bold">₹{paymentStats.totalPaid.toFixed(2)}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-gray-600">Total Paid Amount</p>
+                  <p className="text-lg sm:text-2xl lg:text-3xl font-bold truncate">
+                    ₹{paymentStats.totalPaid.toFixed(2)}
+                  </p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-4">
-                <div className="p-3 bg-blue-100 rounded-lg">
-                  <CheckCircle className="w-6 h-6 text-blue-600" />
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex items-center space-x-3 sm:space-x-4">
+                <div className="p-2 sm:p-3 bg-blue-100 rounded-lg">
+                  <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600">Completed Appointments</p>
-                  <p className="text-3xl font-bold">{completedAppointments.length}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-gray-600">Completed Appointments</p>
+                  <p className="text-lg sm:text-2xl lg:text-3xl font-bold">{completedAppointments.length}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-4">
-                <div className="p-3 bg-red-100 rounded-lg">
-                  <CreditCard className="w-6 h-6 text-red-600" />
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex items-center space-x-3 sm:space-x-4">
+                <div className="p-2 sm:p-3 bg-red-100 rounded-lg">
+                  <CreditCard className="w-5 h-5 sm:w-6 sm:h-6 text-red-600" />
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600">Outstanding Balance</p>
-                  <p className="text-3xl font-bold">₹{paymentStats.outstandingBalance.toFixed(2)}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-gray-600">Outstanding Balance</p>
+                  <p className="text-lg sm:text-2xl lg:text-3xl font-bold truncate">
+                    ₹{paymentStats.outstandingBalance.toFixed(2)}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -297,60 +330,70 @@ export function PatientDashboard() {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
           {/* Book New Appointment */}
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader className="text-center pb-4">
-              <div className="w-12 h-12 mx-auto bg-blue-100 rounded-full flex items-center justify-center mb-3">
-                <CalendarPlus className="w-6 h-6 text-blue-600" />
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={handleBookAppointment}>
+            <CardHeader className="text-center pb-3 sm:pb-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 mx-auto bg-blue-100 rounded-full flex items-center justify-center mb-2 sm:mb-3">
+                <CalendarPlus className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
               </div>
-              <CardTitle className="text-lg">Book New Appointment</CardTitle>
-              <p className="text-sm text-gray-600">Schedule your next dental visit</p>
+              <CardTitle className="text-base sm:text-lg">Book New Appointment</CardTitle>
+              <p className="text-xs sm:text-sm text-gray-600">Schedule your next dental visit</p>
             </CardHeader>
             <CardContent>
-              <div className="mt-4">
-                <Link href="/appointments">
-                  <Button variant="outline" className="w-full bg-white text-black border-gray-300 hover:bg-gray-50">
-                    <CalendarPlus className="w-4 h-4 mr-2" />
-                    Book Now
-                  </Button>
-                </Link>
+              <div className="mt-2 sm:mt-4">
+                <Button
+                  variant="outline"
+                  className="w-full bg-white text-black border-gray-300 hover:bg-gray-50 text-sm"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleBookAppointment()
+                  }}
+                >
+                  <CalendarPlus className="w-4 h-4 mr-2" />
+                  Book Now
+                </Button>
               </div>
             </CardContent>
           </Card>
 
           {/* View Payment History */}
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader className="text-center pb-4">
-              <div className="w-12 h-12 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-3">
-                <History className="w-6 h-6 text-green-600" />
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push("/payments")}>
+            <CardHeader className="text-center pb-3 sm:pb-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-2 sm:mb-3">
+                <History className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
               </div>
-              <CardTitle className="text-lg">Payment History</CardTitle>
-              <p className="text-sm text-gray-600">View your payment records</p>
+              <CardTitle className="text-base sm:text-lg">Payment History</CardTitle>
+              <p className="text-xs sm:text-sm text-gray-600">View your payment records</p>
             </CardHeader>
             <CardContent>
-              <div className="mt-4">
-                <Link href="/payments">
-                  <Button variant="outline" className="w-full bg-white text-black border-gray-300 hover:bg-gray-50">
-                    <History className="w-4 h-4 mr-2" />
-                    View History
-                  </Button>
-                </Link>
+              <div className="mt-2 sm:mt-4">
+                <Button
+                  variant="outline"
+                  className="w-full bg-white text-black border-gray-300 hover:bg-gray-50 text-sm"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    router.push("/payments")
+                  }}
+                >
+                  <History className="w-4 h-4 mr-2" />
+                  View History
+                </Button>
               </div>
             </CardContent>
           </Card>
 
           {/* Update Profile */}
           <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader className="text-center pb-4">
-              <div className="w-12 h-12 mx-auto bg-purple-100 rounded-lg flex items-center justify-center mb-3">
-                <Edit className="w-6 h-6 text-purple-600" />
+            <CardHeader className="text-center pb-3 sm:pb-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 mx-auto bg-purple-100 rounded-lg flex items-center justify-center mb-2 sm:mb-3">
+                <Edit className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
               </div>
-              <CardTitle className="text-lg">Update Profile</CardTitle>
-              <p className="text-sm text-gray-600">Manage your personal information</p>
+              <CardTitle className="text-base sm:text-lg">Update Profile</CardTitle>
+              <p className="text-xs sm:text-sm text-gray-600">Manage your personal information</p>
             </CardHeader>
             <CardContent>
-              <div className="mt-4">
+              <div className="mt-2 sm:mt-4">
                 <UpdateProfileModal user={currentUser} onProfileUpdate={handleProfileUpdate} />
               </div>
             </CardContent>
@@ -358,11 +401,17 @@ export function PatientDashboard() {
         </div>
 
         {/* Main Content Tabs */}
-        <Tabs defaultValue="upcoming" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 max-w-md mx-auto">
-            <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
-            <TabsTrigger value="history">History</TabsTrigger>
-            <TabsTrigger value="payments">Payments</TabsTrigger>
+        <Tabs defaultValue="upcoming" className="space-y-4 sm:space-y-6">
+          <TabsList className="grid w-full grid-cols-3 max-w-md mx-auto h-12">
+            <TabsTrigger value="upcoming" className="text-sm">
+              Upcoming
+            </TabsTrigger>
+            <TabsTrigger value="history" className="text-sm">
+              History
+            </TabsTrigger>
+            <TabsTrigger value="payments" className="text-sm">
+              Payments
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="upcoming">
@@ -378,29 +427,30 @@ export function PatientDashboard() {
                   <div className="space-y-4">
                     {upcomingAppointments.map((appointment) => (
                       <div key={appointment.id} className="p-4 border rounded-lg">
-                        <div className="flex items-start justify-between">
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                           <div className="flex-1">
-                            <h3 className="font-medium">{cleanAppointmentType(appointment.appointment_type)}</h3>
-                            <div className="flex items-center text-sm text-gray-600 mt-1">
-                              <Calendar className="w-4 h-4 mr-1" />
-                              {formatDate(appointment.appointment_date)}
-                              <Clock className="w-4 h-4 ml-3 mr-1" />
-                              {formatTime(appointment.appointment_time)}
+                            <h3 className="font-medium text-base">
+                              {cleanAppointmentType(appointment.appointment_type)}
+                            </h3>
+                            <div className="flex flex-col sm:flex-row sm:items-center text-sm text-gray-600 mt-1 gap-1 sm:gap-3">
+                              <div className="flex items-center">
+                                <Calendar className="w-4 h-4 mr-1" />
+                                {formatDate(appointment.appointment_date)}
+                              </div>
+                              <div className="flex items-center">
+                                <Clock className="w-4 h-4 mr-1" />
+                                {formatTime(appointment.appointment_time)}
+                              </div>
                             </div>
                             {appointment.notes && <p className="text-sm text-gray-500 mt-1">{appointment.notes}</p>}
-                            {appointment.doctor && (
-                              <p className="text-sm text-gray-600 mt-1">
-                                Dr. {appointment.doctor.first_name} {appointment.doctor.last_name}
-                              </p>
-                            )}
 
                             {/* Action Buttons for Approved Appointments */}
-                            <div className="flex gap-2 mt-3">
+                            <div className="flex flex-col sm:flex-row gap-2 mt-3">
                               <Button
                                 size="sm"
                                 variant="outline"
                                 onClick={handleGetDirections}
-                                className="flex items-center bg-transparent"
+                                className="flex items-center bg-transparent text-sm"
                               >
                                 <MapPin className="w-4 h-4 mr-1" />
                                 Get Directions
@@ -409,7 +459,7 @@ export function PatientDashboard() {
                                 size="sm"
                                 variant="outline"
                                 onClick={handleCallClinic}
-                                className="flex items-center bg-transparent"
+                                className="flex items-center bg-transparent text-sm"
                               >
                                 <Phone className="w-4 h-4 mr-1" />
                                 Call Clinic
@@ -428,9 +478,9 @@ export function PatientDashboard() {
                     <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-lg font-semibold mb-2">No upcoming appointments</h3>
                     <p className="text-gray-600 mb-4">Book your next appointment to maintain your dental health</p>
-                    <Link href="/appointments">
-                      <Button className="bg-blue-600 hover:bg-blue-700">Book New Appointment</Button>
-                    </Link>
+                    <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleBookAppointment}>
+                      Book New Appointment
+                    </Button>
                   </div>
                 )}
               </CardContent>
@@ -450,21 +500,22 @@ export function PatientDashboard() {
                   <div className="space-y-4">
                     {completedAppointments.map((appointment) => (
                       <div key={appointment.id} className="p-4 border rounded-lg">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h3 className="font-medium">{cleanAppointmentType(appointment.appointment_type)}</h3>
-                            <div className="flex items-center text-sm text-gray-600 mt-1">
-                              <Calendar className="w-4 h-4 mr-1" />
-                              {formatDate(appointment.appointment_date)}
-                              <Clock className="w-4 h-4 ml-3 mr-1" />
-                              {formatTime(appointment.appointment_time)}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                          <div className="flex-1">
+                            <h3 className="font-medium text-base">
+                              {cleanAppointmentType(appointment.appointment_type)}
+                            </h3>
+                            <div className="flex flex-col sm:flex-row sm:items-center text-sm text-gray-600 mt-1 gap-1 sm:gap-3">
+                              <div className="flex items-center">
+                                <Calendar className="w-4 h-4 mr-1" />
+                                {formatDate(appointment.appointment_date)}
+                              </div>
+                              <div className="flex items-center">
+                                <Clock className="w-4 h-4 mr-1" />
+                                {formatTime(appointment.appointment_time)}
+                              </div>
                             </div>
                             {appointment.notes && <p className="text-sm text-gray-500 mt-1">{appointment.notes}</p>}
-                            {appointment.doctor && (
-                              <p className="text-sm text-gray-600 mt-1">
-                                Dr. {appointment.doctor.first_name} {appointment.doctor.last_name}
-                              </p>
-                            )}
                           </div>
                           <Badge className={getStatusColor(appointment.status)}>
                             {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
@@ -492,36 +543,54 @@ export function PatientDashboard() {
                   Payment History
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-2 sm:px-6">
                 {recentPayments.length > 0 ? (
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     {recentPayments.map((payment) => (
-                      <div key={payment.id} className="p-4 border rounded-lg">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h3 className="font-medium">
-                              {cleanAppointmentType(payment.treatment_type || payment.appointment_type || "Treatment")}
-                            </h3>
-                            <div className="flex items-center text-sm text-gray-600 mt-1">
-                              <Calendar className="w-4 h-4 mr-1" />
-                              {formatDate(payment.appointment_date)}
+                      <div key={payment.id} className="border rounded-lg bg-white p-3">
+                        {/* Mobile-optimized payment card layout */}
+                        <div className="space-y-2">
+                          {/* Status badge and treatment type */}
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <Badge className={`${getPaymentStatusColor(payment.payment_status)} text-xs mb-1`}>
+                                {getPaymentStatusText(payment.payment_status)}
+                              </Badge>
+                              <h3 className="font-medium text-sm break-words">
+                                {cleanAppointmentType(payment.treatment_type || payment.appointment_type)}
+                              </h3>
                             </div>
-                            <div className="flex items-center text-sm text-gray-600 mt-1">
-                              <IndianRupee className="w-4 h-4 mr-1" />
-                              Total: ₹{(payment.total_amount || payment.bill_amount || 0).toFixed(2)} | Paid: ₹
-                              {(payment.amount_paid || payment.paid_amount || 0).toFixed(2)}
+                          </div>
+
+                          {/* Appointment date */}
+                          <div className="flex items-center text-xs text-gray-600">
+                            <Calendar className="w-3 h-3 mr-1 flex-shrink-0" />
+                            <span>{formatDate(payment.appointment_date)}</span>
+                          </div>
+
+                          {/* Payment amounts in a clean grid */}
+                          <div className="grid grid-cols-1 gap-1 text-xs pt-2 border-t">
+                            <div className="flex justify-between items-center">
+                              <span className="text-gray-600">Total Amount</span>
+                              <span className="font-medium">
+                                {formatCurrency(payment.total_amount || payment.bill_amount || 0)}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-gray-600">Amount Paid</span>
+                              <span className="font-medium text-green-600">
+                                {formatCurrency(payment.amount_paid || payment.paid_amount || 0)}
+                              </span>
                             </div>
                             {payment.outstanding_balance > 0 && (
-                              <p className="text-sm text-red-600 mt-1">
-                                Outstanding: ₹{payment.outstanding_balance.toFixed(2)}
-                              </p>
+                              <div className="flex justify-between items-center">
+                                <span className="text-gray-600">Outstanding</span>
+                                <span className="font-medium text-red-600">
+                                  {formatCurrency(payment.outstanding_balance)}
+                                </span>
+                              </div>
                             )}
                           </div>
-                          <Badge className={getPaymentStatusColor(payment.payment_status)}>
-                            {payment.payment_status === "fully_paid" && "Fully Paid"}
-                            {payment.payment_status === "partial_paid" && "Partial Paid"}
-                            {payment.payment_status === "not_paid" && "Not Paid"}
-                          </Badge>
                         </div>
                       </div>
                     ))}

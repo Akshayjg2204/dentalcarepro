@@ -68,15 +68,57 @@ export function PatientProfileModal({
 
     try {
       setIsSaving(true)
-      const updatedPatient = await updatePatientRecord(patient.id, formData)
+
+      // Prepare the update data with only changed fields
+      const updateData: Partial<PatientRecord> = {}
+
+      // Compare each field and only include changed ones
+      if (formData.first_name !== originalData?.first_name) {
+        updateData.first_name = formData.first_name || ""
+      }
+      if (formData.last_name !== originalData?.last_name) {
+        updateData.last_name = formData.last_name || ""
+      }
+      if (formData.email !== originalData?.email) {
+        updateData.email = formData.email || ""
+      }
+      if (formData.phone !== originalData?.phone) {
+        updateData.phone = formData.phone || null
+      }
+      if (formData.date_of_birth !== originalData?.date_of_birth) {
+        updateData.date_of_birth = formData.date_of_birth || null
+      }
+      if (formData.address !== originalData?.address) {
+        updateData.address = formData.address || null
+      }
+      if (formData.emergency_contact_name !== originalData?.emergency_contact_name) {
+        updateData.emergency_contact_name = formData.emergency_contact_name || null
+      }
+      if (formData.emergency_contact_phone !== originalData?.emergency_contact_phone) {
+        updateData.emergency_contact_phone = formData.emergency_contact_phone || null
+      }
+      if (formData.medical_conditions !== originalData?.medical_conditions) {
+        updateData.medical_conditions = formData.medical_conditions || null
+      }
+      if (formData.allergies !== originalData?.allergies) {
+        updateData.allergies = formData.allergies || null
+      }
+      if (formData.dental_history !== originalData?.dental_history) {
+        updateData.dental_history = formData.dental_history || null
+      }
+
+      console.log("Saving patient data:", updateData)
+
+      const updatedPatient = await updatePatientRecord(patient.id, updateData)
       setPatient(updatedPatient)
       setOriginalData(updatedPatient)
+      setFormData(updatedPatient)
       setIsEditMode(false)
       toast.success("Patient information updated successfully")
       onPatientUpdated?.()
     } catch (error: any) {
       console.error("Failed to update patient:", error)
-      toast.error("Failed to update patient information")
+      toast.error(`Failed to update patient information: ${error.message}`)
     } finally {
       setIsSaving(false)
     }
@@ -124,12 +166,18 @@ export function PatientProfileModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle className="flex items-center space-x-2">
-              <User className="w-5 h-5" />
-              <span>{patient ? `${patient.first_name} ${patient.last_name}` : "Patient Profile"}</span>
+          {/* Mobile-optimized header */}
+          <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+            {/* Patient name and icon - stacked on mobile */}
+            <DialogTitle className="flex items-center space-x-2 text-lg sm:text-xl">
+              <User className="w-5 h-5 flex-shrink-0" />
+              <span className="truncate">
+                {patient ? `${patient.first_name} ${patient.last_name}` : "Patient Profile"}
+              </span>
             </DialogTitle>
-            <div className="flex items-center space-x-2">
+
+            {/* Action buttons - stacked on mobile */}
+            <div className="flex items-center justify-between sm:justify-end space-x-2">
               {canEdit && (
                 <Button
                   variant={isEditMode ? "outline" : "default"}
@@ -141,23 +189,25 @@ export function PatientProfileModal({
                       setIsEditMode(true)
                     }
                   }}
-                  className="flex items-center space-x-1"
+                  className="flex items-center space-x-1 text-xs sm:text-sm"
                 >
                   {isEditMode ? (
                     <>
-                      <Eye className="w-4 h-4" />
-                      <span>View Mode</span>
+                      <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
+                      <span className="hidden sm:inline">View Mode</span>
+                      <span className="sm:hidden">View</span>
                     </>
                   ) : (
                     <>
-                      <Edit className="w-4 h-4" />
-                      <span>Edit Mode</span>
+                      <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
+                      <span className="hidden sm:inline">Edit Mode</span>
+                      <span className="sm:hidden">Edit</span>
                     </>
                   )}
                 </Button>
               )}
               <Button variant="ghost" size="sm" onClick={onClose}>
-                <X className="w-4 h-4" />
+                
               </Button>
             </div>
           </div>
@@ -172,23 +222,32 @@ export function PatientProfileModal({
           </div>
         ) : patient ? (
           <div className="space-y-6">
+            {/* Mobile-optimized tabs */}
             <Tabs defaultValue="basic" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="basic">Basic Information</TabsTrigger>
-                <TabsTrigger value="medical">Medical & Dental</TabsTrigger>
-                <TabsTrigger value="history">History</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-3 h-auto">
+                <TabsTrigger value="basic" className="text-xs sm:text-sm px-2 py-2">
+                  <span className="hidden sm:inline">Basic Information</span>
+                  <span className="sm:hidden">Basic</span>
+                </TabsTrigger>
+                <TabsTrigger value="medical" className="text-xs sm:text-sm px-2 py-2">
+                  <span className="hidden sm:inline">Medical & Dental</span>
+                  <span className="sm:hidden">Medical</span>
+                </TabsTrigger>
+                <TabsTrigger value="history" className="text-xs sm:text-sm px-2 py-2">
+                  History
+                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="basic" className="space-y-6">
                 <Card>
                   <CardHeader>
-                    <CardTitle className="flex items-center space-x-2">
+                    <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
                       <User className="w-4 h-4" />
                       <span>Personal Information</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="firstName">First Name</Label>
                         <Input
@@ -264,7 +323,7 @@ export function PatientProfileModal({
 
                     <div className="space-y-4">
                       <h4 className="font-medium">Emergency Contact</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <Label htmlFor="emergencyName">Contact Name</Label>
                           <Input
@@ -294,7 +353,7 @@ export function PatientProfileModal({
               <TabsContent value="medical" className="space-y-6">
                 <Card>
                   <CardHeader>
-                    <CardTitle className="flex items-center space-x-2">
+                    <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
                       <FileText className="w-4 h-4" />
                       <span>Medical Information</span>
                     </CardTitle>
@@ -345,13 +404,13 @@ export function PatientProfileModal({
               <TabsContent value="history" className="space-y-6">
                 <Card>
                   <CardHeader>
-                    <CardTitle className="flex items-center space-x-2">
+                    <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
                       <Clock className="w-4 h-4" />
                       <span>Account History</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <Label>Account Created</Label>
                         <p className="text-sm text-gray-600 mt-1">{formatDate(patient.created_at)}</p>
@@ -372,14 +431,19 @@ export function PatientProfileModal({
               </TabsContent>
             </Tabs>
 
-            {/* Action Buttons */}
+            {/* Action Buttons - Mobile optimized */}
             {isEditMode && canEdit && (
-              <div className="flex justify-end space-x-3 pt-4 border-t">
-                <Button variant="outline" onClick={handleCancel} disabled={isSaving}>
+              <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  onClick={handleCancel}
+                  disabled={isSaving}
+                  className="w-full sm:w-auto bg-transparent"
+                >
                   <XCircle className="w-4 h-4 mr-2" />
                   Cancel
                 </Button>
-                <Button onClick={handleSave} disabled={isSaving}>
+                <Button onClick={handleSave} disabled={isSaving} className="w-full sm:w-auto">
                   {isSaving ? (
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                   ) : (

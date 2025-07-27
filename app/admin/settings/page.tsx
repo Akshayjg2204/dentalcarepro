@@ -2,51 +2,35 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { getCurrentUser, signOut } from "@/lib/auth"
-import { getClinicSettings, updateClinicSettings } from "@/lib/clinic-settings"
+import { getCurrentUser } from "@/lib/auth"
+import { getClinicSettings, updateClinicSettings, type ClinicSettings } from "@/lib/clinic-settings"
 import { toast } from "sonner"
-import { ArrowLeft, LogOut, Save, Building, Phone, Globe, Clock } from "lucide-react"
-import Link from "next/link"
+import {
+  ArrowLeft,
+  Save,
+  Building2,
+  Phone,
+  Mail,
+  MapPin,
+  Clock,
+  Globe,
+  Facebook,
+  Instagram,
+  Twitter,
+  Linkedin,
+} from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { TimeSlotManager } from "@/components/time-slot-manager"
+import Link from "next/link"
 
-const defaultWorkingHours = {
-  monday: { open: "09:00", close: "18:00", closed: false },
-  tuesday: { open: "09:00", close: "18:00", closed: false },
-  wednesday: { open: "09:00", close: "18:00", closed: false },
-  thursday: { open: "09:00", close: "18:00", closed: false },
-  friday: { open: "09:00", close: "18:00", closed: false },
-  saturday: { open: "09:00", close: "14:00", closed: false },
-  sunday: { open: "09:00", close: "18:00", closed: true },
-}
-
-const defaultSettings = {
-  clinic_name: "",
-  description: "",
-  phone: "",
-  email: "",
-  address: "",
-  city: "",
-  state: "",
-  postal_code: "",
-  google_maps_link: "",
-  website: "",
-  facebook: "",
-  instagram: "",
-  twitter: "",
-  working_hours: defaultWorkingHours,
-}
-
-export default function AdminSettings() {
+export default function SettingsPage() {
   const [currentUser, setCurrentUser] = useState<any>(null)
+  const [settings, setSettings] = useState<ClinicSettings | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  const [settings, setSettings] = useState(defaultSettings)
   const router = useRouter()
 
   useEffect(() => {
@@ -67,80 +51,39 @@ export default function AdminSettings() {
       console.error("Auth check error:", error)
       toast.error("Authentication failed")
       router.push("/login")
-    } finally {
-      setIsLoading(false)
     }
   }
 
   const fetchSettings = async () => {
     try {
-      const clinicSettings = await getClinicSettings()
-      if (clinicSettings) {
-        // Ensure working_hours exists and has all required properties
-        const workingHours = clinicSettings.working_hours || {}
-        const mergedWorkingHours = { ...defaultWorkingHours }
-
-        // Merge existing working hours with defaults
-        Object.keys(defaultWorkingHours).forEach((day) => {
-          if (workingHours[day]) {
-            mergedWorkingHours[day] = {
-              ...defaultWorkingHours[day],
-              ...workingHours[day],
-            }
-          }
-        })
-
-        setSettings({
-          ...defaultSettings,
-          ...clinicSettings,
-          working_hours: mergedWorkingHours,
-        })
-      }
+      const settingsData = await getClinicSettings()
+      setSettings(settingsData)
     } catch (error: any) {
       console.error("Failed to fetch settings:", error)
-      toast.error("Failed to load settings")
-    }
-  }
-
-  const handleSignOut = async () => {
-    try {
-      await signOut()
-      router.push("/login")
-    } catch (error: any) {
-      toast.error("Failed to sign out")
+      toast.error("Failed to fetch clinic settings")
+    } finally {
+      setIsLoading(false)
     }
   }
 
   const handleSave = async () => {
+    if (!settings) return
+
     setIsSaving(true)
     try {
       await updateClinicSettings(settings)
-      toast.success("Settings saved successfully!")
+      toast.success("Clinic settings updated successfully!")
     } catch (error: any) {
-      toast.error("Failed to save settings: " + (error.message || "Unknown error"))
+      console.error("Failed to update settings:", error)
+      toast.error("Failed to update clinic settings")
     } finally {
       setIsSaving(false)
     }
   }
 
-  const handleInputChange = (field: string, value: string) => {
-    setSettings((prev) => ({
-      ...prev,
-      [field]: value,
-    }))
-  }
-
-  const handleWorkingHoursChange = (day: string, field: string, value: string | boolean) => {
-    setSettings((prev) => ({
-      ...prev,
-      working_hours: {
-        ...prev.working_hours,
-        [day]: {
-          ...prev.working_hours[day],
-          [field]: value,
-        },
-      },
-    }))
+  const handleInputChange = (field: keyof ClinicSettings, value: string) => {
+    if (!settings) return
+    setSettings({ ...settings, [field]: value })
   }
 
   if (isLoading) {
@@ -154,289 +97,342 @@ export default function AdminSettings() {
     )
   }
 
+  if (!settings) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600">Failed to load clinic settings</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b px-6 py-4">
+      <div className="bg-white border-b px-4 sm:px-6 py-3 sm:py-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <Link href="/admin" className="flex items-center text-gray-600 hover:text-gray-800">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
+          <div className="flex items-center space-x-2 sm:space-x-4 min-w-0">
+            <Link href="/admin" className="flex items-center text-gray-600 hover:text-gray-800 flex-shrink-0">
+              <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="hidden sm:inline ml-2">Back to Admin</span>
             </Link>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-800">Clinic Settings</h1>
-              <p className="text-gray-600">Configure your clinic information</p>
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-2xl font-bold text-gray-800 truncate">Clinic Settings</h1>
+              <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">
+                Manage your clinic information and preferences
+              </p>
             </div>
           </div>
-          <div className="flex items-center space-x-4">
-            <Button onClick={handleSave} disabled={isSaving} className="bg-blue-600 hover:bg-blue-700">
-              {isSaving ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-              ) : (
-                <Save className="w-4 h-4 mr-2" />
-              )}
-              Save Changes
-            </Button>
-            <Button variant="outline" onClick={handleSignOut} className="bg-transparent">
-              <LogOut className="w-4 h-4 mr-2" />
-              Sign Out
-            </Button>
-          </div>
+          <Button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="bg-blue-600 hover:bg-blue-700 text-white flex-shrink-0"
+            size="sm"
+          >
+            {isSaving ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+            ) : (
+              <Save className="w-4 h-4 mr-1 sm:mr-2" />
+            )}
+            <span className="hidden sm:inline">Save Changes</span>
+            <span className="sm:hidden">Save</span>
+          </Button>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="p-6">
-        <div className="max-w-4xl mx-auto">
-          <Tabs defaultValue="basic" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="basic" className="flex items-center space-x-2">
-                <Building className="w-4 h-4" />
-                <span>Basic Info</span>
-              </TabsTrigger>
-              <TabsTrigger value="contact" className="flex items-center space-x-2">
-                <Phone className="w-4 h-4" />
-                <span>Contact</span>
-              </TabsTrigger>
-              <TabsTrigger value="availability" className="flex items-center space-x-2">
-                <Clock className="w-4 h-4" />
-                <span>Availability</span>
-              </TabsTrigger>
-              <TabsTrigger value="social" className="flex items-center space-x-2">
-                <Globe className="w-4 h-4" />
-                <span>Social & Web</span>
-              </TabsTrigger>
-            </TabsList>
+      <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+        {/* Basic Information */}
+        <Card>
+          <CardHeader className="pb-3 sm:pb-4">
+            <div className="flex items-center space-x-2">
+              <Building2 className="w-5 h-5 text-blue-600" />
+              <CardTitle className="text-lg sm:text-xl">Basic Information</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="clinic_name" className="text-sm font-medium">
+                  Clinic Name *
+                </Label>
+                <Input
+                  id="clinic_name"
+                  value={settings.clinic_name || ""}
+                  onChange={(e) => handleInputChange("clinic_name", e.target.value)}
+                  placeholder="Enter clinic name"
+                  className="w-full"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone" className="text-sm font-medium">
+                  Phone Number *
+                </Label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    id="phone"
+                    value={settings.phone || ""}
+                    onChange={(e) => handleInputChange("phone", e.target.value)}
+                    placeholder="Enter phone number"
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+            </div>
 
-            <TabsContent value="basic">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Building className="w-5 h-5 mr-2" />
-                    Basic Information
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="clinic_name">Clinic Name</Label>
-                      <Input
-                        id="clinic_name"
-                        value={settings.clinic_name || ""}
-                        onChange={(e) => handleInputChange("clinic_name", e.target.value)}
-                        placeholder="Enter clinic name"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="description">Tagline/Description</Label>
-                      <Input
-                        id="description"
-                        value={settings.description || ""}
-                        onChange={(e) => handleInputChange("description", e.target.value)}
-                        placeholder="e.g., Best Dentist in KoparKhairane"
-                      />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-sm font-medium">
+                  Email Address *
+                </Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    id="email"
+                    type="email"
+                    value={settings.email || ""}
+                    onChange={(e) => handleInputChange("email", e.target.value)}
+                    placeholder="Enter email address"
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="website" className="text-sm font-medium">
+                  Website
+                </Label>
+                <div className="relative">
+                  <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    id="website"
+                    value={settings.website || ""}
+                    onChange={(e) => handleInputChange("website", e.target.value)}
+                    placeholder="https://www.example.com"
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+            </div>
 
-            <TabsContent value="contact">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Phone className="w-5 h-5 mr-2" />
-                    Contact Information
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">Phone Number</Label>
-                      <Input
-                        id="phone"
-                        value={settings.phone || ""}
-                        onChange={(e) => handleInputChange("phone", e.target.value)}
-                        placeholder="+91 1234567890"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email Address</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={settings.email || ""}
-                        onChange={(e) => handleInputChange("email", e.target.value)}
-                        placeholder="info@clinic.com"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="address">Street Address</Label>
-                    <Textarea
-                      id="address"
-                      value={settings.address || ""}
-                      onChange={(e) => handleInputChange("address", e.target.value)}
-                      placeholder="Enter full street address"
-                      rows={2}
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="city">City</Label>
-                      <Input
-                        id="city"
-                        value={settings.city || ""}
-                        onChange={(e) => handleInputChange("city", e.target.value)}
-                        placeholder="City"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="state">State</Label>
-                      <Input
-                        id="state"
-                        value={settings.state || ""}
-                        onChange={(e) => handleInputChange("state", e.target.value)}
-                        placeholder="State"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="postal_code">Postal Code</Label>
-                      <Input
-                        id="postal_code"
-                        value={settings.postal_code || ""}
-                        onChange={(e) => handleInputChange("postal_code", e.target.value)}
-                        placeholder="400709"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="google_maps_link">Google Maps Link</Label>
-                    <Input
-                      id="google_maps_link"
-                      value={settings.google_maps_link || ""}
-                      onChange={(e) => handleInputChange("google_maps_link", e.target.value)}
-                      placeholder="https://maps.google.com/?q=Your+Clinic+Location"
-                    />
-                    <p className="text-sm text-gray-500">
-                      Paste the Google Maps link for your clinic location. This will be used for the "Get Directions"
-                      button.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
+            <div className="space-y-2">
+              <Label htmlFor="address" className="text-sm font-medium">
+                Address *
+              </Label>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-3 text-gray-400 w-4 h-4" />
+                <Textarea
+                  id="address"
+                  value={settings.address || ""}
+                  onChange={(e) => handleInputChange("address", e.target.value)}
+                  placeholder="Enter complete address"
+                  className="pl-10 min-h-[80px] resize-none"
+                />
+              </div>
+            </div>
 
-            <TabsContent value="availability">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Clock className="w-5 h-5 mr-2" />
-                    Working Hours & Availability
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="text-lg font-medium mb-4">Working Hours</h3>
-                      <div className="space-y-4">
-                        {Object.entries(settings.working_hours || defaultWorkingHours).map(([day, hours]) => (
-                          <div key={day} className="flex items-center space-x-4">
-                            <div className="w-24">
-                              <Label className="capitalize">{day}</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <input
-                                type="checkbox"
-                                checked={!hours.closed}
-                                onChange={(e) => handleWorkingHoursChange(day, "closed", !e.target.checked)}
-                                className="rounded"
-                              />
-                              <Label className="text-sm">Open</Label>
-                            </div>
-                            {!hours.closed && (
-                              <>
-                                <Input
-                                  type="time"
-                                  value={hours.open || "09:00"}
-                                  onChange={(e) => handleWorkingHoursChange(day, "open", e.target.value)}
-                                  className="w-32"
-                                />
-                                <span className="text-gray-500">to</span>
-                                <Input
-                                  type="time"
-                                  value={hours.close || "18:00"}
-                                  onChange={(e) => handleWorkingHoursChange(day, "close", e.target.value)}
-                                  className="w-32"
-                                />
-                              </>
-                            )}
-                            {hours.closed && <span className="text-gray-500 italic">Closed</span>}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-medium mb-4">Time Slot Management</h3>
-                      <TimeSlotManager />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
+            <div className="space-y-2">
+              <Label htmlFor="google_maps_link" className="text-sm font-medium">
+                Google Maps Link
+              </Label>
+              <Input
+                id="google_maps_link"
+                value={settings.google_maps_link || ""}
+                onChange={(e) => handleInputChange("google_maps_link", e.target.value)}
+                placeholder="https://maps.google.com/..."
+                className="w-full"
+              />
+              <p className="text-xs text-gray-500">Paste the Google Maps link for your clinic location</p>
+            </div>
+          </CardContent>
+        </Card>
 
-            <TabsContent value="social">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Globe className="w-5 h-5 mr-2" />
-                    Social Media & Website
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="website">Website URL</Label>
-                    <Input
-                      id="website"
-                      value={settings.website || ""}
-                      onChange={(e) => handleInputChange("website", e.target.value)}
-                      placeholder="https://www.yourclinic.com"
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="facebook">Facebook</Label>
-                      <Input
-                        id="facebook"
-                        value={settings.facebook || ""}
-                        onChange={(e) => handleInputChange("facebook", e.target.value)}
-                        placeholder="https://facebook.com/yourclinic"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="instagram">Instagram</Label>
-                      <Input
-                        id="instagram"
-                        value={settings.instagram || ""}
-                        onChange={(e) => handleInputChange("instagram", e.target.value)}
-                        placeholder="https://instagram.com/yourclinic"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="twitter">Twitter</Label>
-                      <Input
-                        id="twitter"
-                        value={settings.twitter || ""}
-                        onChange={(e) => handleInputChange("twitter", e.target.value)}
-                        placeholder="https://twitter.com/yourclinic"
-                      />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+        {/* Operating Hours */}
+        <Card>
+          <CardHeader className="pb-3 sm:pb-4">
+            <div className="flex items-center space-x-2">
+              <Clock className="w-5 h-5 text-green-600" />
+              <CardTitle className="text-lg sm:text-xl">Operating Hours</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="opening_time" className="text-sm font-medium">
+                  Opening Time
+                </Label>
+                <Input
+                  id="opening_time"
+                  type="time"
+                  value={settings.opening_time || ""}
+                  onChange={(e) => handleInputChange("opening_time", e.target.value)}
+                  className="w-full"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="closing_time" className="text-sm font-medium">
+                  Closing Time
+                </Label>
+                <Input
+                  id="closing_time"
+                  type="time"
+                  value={settings.closing_time || ""}
+                  onChange={(e) => handleInputChange("closing_time", e.target.value)}
+                  className="w-full"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="working_days" className="text-sm font-medium">
+                Working Days
+              </Label>
+              <Input
+                id="working_days"
+                value={settings.working_days || ""}
+                onChange={(e) => handleInputChange("working_days", e.target.value)}
+                placeholder="e.g., Monday - Saturday"
+                className="w-full"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Social Media */}
+        <Card>
+          <CardHeader className="pb-3 sm:pb-4">
+            <div className="flex items-center space-x-2">
+              <Globe className="w-5 h-5 text-purple-600" />
+              <CardTitle className="text-lg sm:text-xl">Social Media</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="facebook_url" className="text-sm font-medium">
+                  Facebook
+                </Label>
+                <div className="relative">
+                  <Facebook className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    id="facebook_url"
+                    value={settings.facebook_url || ""}
+                    onChange={(e) => handleInputChange("facebook_url", e.target.value)}
+                    placeholder="https://facebook.com/..."
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="instagram_url" className="text-sm font-medium">
+                  Instagram
+                </Label>
+                <div className="relative">
+                  <Instagram className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    id="instagram_url"
+                    value={settings.instagram_url || ""}
+                    onChange={(e) => handleInputChange("instagram_url", e.target.value)}
+                    placeholder="https://instagram.com/..."
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="twitter_url" className="text-sm font-medium">
+                  Twitter
+                </Label>
+                <div className="relative">
+                  <Twitter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    id="twitter_url"
+                    value={settings.twitter_url || ""}
+                    onChange={(e) => handleInputChange("twitter_url", e.target.value)}
+                    placeholder="https://twitter.com/..."
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="linkedin_url" className="text-sm font-medium">
+                  LinkedIn
+                </Label>
+                <div className="relative">
+                  <Linkedin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    id="linkedin_url"
+                    value={settings.linkedin_url || ""}
+                    onChange={(e) => handleInputChange("linkedin_url", e.target.value)}
+                    placeholder="https://linkedin.com/..."
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Additional Information */}
+        <Card>
+          <CardHeader className="pb-3 sm:pb-4">
+            <CardTitle className="text-lg sm:text-xl">Additional Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="description" className="text-sm font-medium">
+                Clinic Description
+              </Label>
+              <Textarea
+                id="description"
+                value={settings.description || ""}
+                onChange={(e) => handleInputChange("description", e.target.value)}
+                placeholder="Brief description about your clinic, services, and specialties..."
+                className="min-h-[100px] resize-none"
+              />
+              <p className="text-xs text-gray-500">This description will be displayed on your clinic's public pages</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="emergency_contact" className="text-sm font-medium">
+                Emergency Contact
+              </Label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Input
+                  id="emergency_contact"
+                  value={settings.emergency_contact || ""}
+                  onChange={(e) => handleInputChange("emergency_contact", e.target.value)}
+                  placeholder="Emergency contact number"
+                  className="pl-10"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Save Button - Mobile */}
+        <div className="block sm:hidden">
+          <Button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3"
+          >
+            {isSaving ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Saving Changes...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4 mr-2" />
+                Save Changes
+              </>
+            )}
+          </Button>
         </div>
       </div>
     </div>

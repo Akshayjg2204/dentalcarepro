@@ -3,188 +3,158 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Calendar, ArrowLeft, LogOut, Plus, X } from "lucide-react"
-import { getCurrentUser, signOut } from "@/lib/auth"
-import {
-  createAppointment,
-  getAppointmentTypes,
-  getPatientAppointments,
-  updateAppointmentStatus,
-  type AppointmentType,
-} from "@/lib/appointments"
-import { ClockTimeSelector } from "@/components/clock-time-selector"
-import { toast } from "sonner"
+import { Calendar } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { format } from "date-fns"
+import { CalendarIcon, ArrowLeft, Clock, User, CalendarIcon as CalendarIconLucide } from "lucide-react"
 import Link from "next/link"
+import { supabase } from "@/lib/supabase"
+import { createAppointment, getPatientAppointments, type Appointment } from "@/lib/appointments"
+import { getAvailableTimeSlots } from "@/lib/clinic-availability"
+import { toast } from "sonner"
+import { cn } from "@/lib/utils"
 
 export default function AppointmentsPage() {
-  const [currentUser, setCurrentUser] = useState<any>(null)
-  const [appointments, setAppointments] = useState<any[]>([])
-  const [appointmentTypes, setAppointmentTypes] = useState<AppointmentType[]>([])
+  const [user, setUser] = useState<any>(null)
+  const [appointments, setAppointments] = useState<Appointment[]>([])
+  const [appointmentTypes, setAppointmentTypes] = useState<any[]>([])
+  const [selectedType, setSelectedType] = useState("")
+  const [selectedDate, setSelectedDate] = useState<Date>()
+  const [selectedTime, setSelectedTime] = useState("")
+  const [availableSlots, setAvailableSlots] = useState<string[]>([])
+  const [notes, setNotes] = useState("")
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [cancellingAppointments, setCancellingAppointments] = useState<Set<string>>(new Set())
-  const router = useRouter()
-
-  const [formData, setFormData] = useState({
-    appointmentType: "",
-    appointmentDate: "",
-    appointmentTime: "",
-    notes: "",
-  })
 
   useEffect(() => {
     checkAuth()
+    fetchAppointmentTypes()
   }, [])
 
   const checkAuth = async () => {
     try {
-      const user = await getCurrentUser()
-      if (!user) {
-        router.push("/login")
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      if (!session) {
+        window.location.href = "/login"
         return
       }
 
-      // Only patients can access this page
-      if (user.profile.role !== "patient") {
-        toast.error("Access denied. This page is for patients only.")
-        router.push("/dashboard")
+      const { data: userData, error: userError } = await supabase
+        .from("users")
+        .select("*")
+        .eq("email", session.user.email)
+        .maybeSingle()
+
+      if (userError || !userData) {
+        console.error("Error fetching user:", userError)
+        window.location.href = "/login"
         return
       }
 
-      setCurrentUser(user)
-      await fetchData(user.profile.id)
-    } catch (error: any) {
-      console.error("Auth check error:", error)
-      toast.error("Authentication failed")
-      router.push("/login")
+      if (userData.role !== "patient") {
+        window.location.href = "/dashboard"
+        return
+      }
+
+      setUser(userData)
+      await fetchAppointments(userData.id)
+    } catch (error) {
+      console.error("Auth error:", error)
+      window.location.href = "/login"
     } finally {
       setIsLoading(false)
     }
   }
 
-  const fetchData = async (patientId: string) => {
+  const fetchAppointmentTypes = async () => {
     try {
-      const [userAppointments, types] = await Promise.all([getPatientAppointments(patientId), getAppointmentTypes()])
+      const { data, error } = await supabase.from("appointment_types").select("*").order("name", { ascending: true })
 
-      setAppointments(userAppointments)
-      setAppointmentTypes(types)
-    } catch (error: any) {
-      console.error("Error fetching data:", error)
-      toast.error("Failed to load appointment data")
+      if (error) {
+        console.error("Error fetching appointment types:", error)
+        return
+      }
+
+      setAppointmentTypes(data || [])
+    } catch (error) {
+      console.error("Error fetching appointment types:", error)
     }
   }
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
+  const fetchAppointments = async (patientId: string) => {
+    try {
+      const appointmentsData = await getPatientAppointments(patientId)
+      setAppointments(appointmentsData)
+    } catch (error) {
+      console.error("Error fetching appointments:", error)
+      toast.error("Failed to fetch appointments")
+    }
   }
 
-  const resetForm = () => {
-    setFormData({
-      appointmentType: "",
-      appointmentDate: "",
-      appointmentTime: "",
-      notes: "",
-    })
+  const fetchAvailableSlots = async (date: Date) => {
+    try {
+      const dateString = format(date, "yyyy-MM-dd")
+      const availableTimeSlots = await getAvailableTimeSlots(dateString)
+      const timeSlots = availableTimeSlots.map((slot) => slot.time_slot)
+      setAvailableSlots(timeSlots)
+    } catch (error) {
+      console.error("Error fetching available slots:", error)
+      toast.error("Failed to fetch available time slots")
+    }
+  }
+
+  const handleDateSelect = (date: Date | undefined) => {
+    setSelectedDate(date)
+    setSelectedTime("")
+    if (date) {
+      fetchAvailableSlots(date)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!currentUser) return
-
-    setIsSubmitting(true)
-    try {
-      // Validate required fields
-      if (!formData.appointmentType) {
-        throw new Error("Please select an appointment type")
-      }
-      if (!formData.appointmentDate) {
-        throw new Error("Please select a date")
-      }
-      if (!formData.appointmentTime) {
-        throw new Error("Please select a time")
-      }
-
-      // Check if the selected date is not in the past
-      const selectedDate = new Date(formData.appointmentDate)
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-
-      if (selectedDate < today) {
-        throw new Error("Cannot schedule appointments in the past")
-      }
-
-      await createAppointment({
-        patientId: currentUser.profile.id,
-        appointmentDate: formData.appointmentDate,
-        appointmentTime: formData.appointmentTime,
-        appointmentType: formData.appointmentType,
-        notes: formData.notes.trim() || undefined,
-      })
-
-      toast.success("Appointment request submitted successfully! You will be notified once it's approved.")
-      resetForm()
-      await fetchData(currentUser.profile.id)
-    } catch (error: any) {
-      console.error("Error creating appointment:", error)
-      toast.error(error.message || "Failed to create appointment")
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  const handleCancelAppointment = async (appointmentId: string) => {
-    if (!confirm("Are you sure you want to cancel this appointment?")) {
+    if (!selectedType || !selectedDate || !selectedTime) {
+      toast.error("Please fill in all required fields")
       return
     }
 
-    setCancellingAppointments((prev) => new Set(prev).add(appointmentId))
+    setIsSubmitting(true)
     try {
-      await updateAppointmentStatus(appointmentId, "cancelled")
-      toast.success("Appointment cancelled successfully")
-      await fetchData(currentUser.profile.id)
-    } catch (error: any) {
-      console.error("Error cancelling appointment:", error)
-      toast.error("Failed to cancel appointment")
-    } finally {
-      setCancellingAppointments((prev) => {
-        const newSet = new Set(prev)
-        newSet.delete(appointmentId)
-        return newSet
+      const result = await createAppointment({
+        patientId: user.id,
+        appointmentDate: format(selectedDate, "yyyy-MM-dd"),
+        appointmentTime: selectedTime,
+        appointmentType: selectedType,
+        notes: notes.trim() || undefined,
       })
-    }
-  }
 
-  const handleSignOut = async () => {
-    try {
-      await signOut()
-      router.push("/login")
+      if (result.success) {
+        toast.success("Appointment booked successfully!")
+        // Reset form
+        setSelectedType("")
+        setSelectedDate(undefined)
+        setSelectedTime("")
+        setNotes("")
+        // Refresh appointments
+        await fetchAppointments(user.id)
+      } else {
+        toast.error(result.error || "Failed to book appointment")
+      }
     } catch (error: any) {
-      toast.error("Failed to sign out")
+      console.error("Error booking appointment:", error)
+      toast.error("Failed to book appointment")
+    } finally {
+      setIsSubmitting(false)
     }
-  }
-
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString("en-US", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    })
-  }
-
-  const formatTime = (time: string) => {
-    return new Date(`2000-01-01T${time}`).toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    })
   }
 
   const getStatusColor = (status: string) => {
@@ -204,13 +174,21 @@ export default function AppointmentsPage() {
     }
   }
 
-  // Get today's date as minimum selectable date
-  const today = new Date().toISOString().split("T")[0]
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    })
+  }
 
-  // Get max date (30 days from today)
-  const maxDate = new Date()
-  maxDate.setDate(maxDate.getDate() + 30)
-  const maxDateString = maxDate.toISOString().split("T")[0]
+  const formatTime = (timeString: string) => {
+    return new Date(`2000-01-01T${timeString}`).toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    })
+  }
 
   if (isLoading) {
     return (
@@ -226,115 +204,130 @@ export default function AppointmentsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <Link href="/dashboard" className="flex items-center text-gray-600 hover:text-gray-800">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
-            </Link>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-800">My Appointments</h1>
-              <p className="text-gray-600">Schedule and manage your appointments</p>
+      <div className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between py-4">
+            <div className="flex items-center space-x-4">
+              <Link href="/dashboard" className="flex items-center text-gray-600 hover:text-gray-900">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                <span className="hidden sm:inline">Back to Dashboard</span>
+                <span className="sm:hidden">Back</span>
+              </Link>
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">My Appointments</h1>
+                <p className="text-gray-600 hidden sm:block">Schedule and manage your appointments</p>
+              </div>
             </div>
           </div>
-          <Button variant="outline" onClick={handleSignOut} className="flex items-center bg-transparent">
-            <LogOut className="w-4 h-4 mr-2" />
-            Sign Out
-          </Button>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="p-6">
-        <div className="max-w-6xl mx-auto grid lg:grid-cols-3 gap-6">
-          {/* Book New Appointment */}
-          <div className="lg:col-span-1">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6 sm:gap-8">
+          {/* Book New Appointment Form */}
+          <div className="lg:col-span-2">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Plus className="w-5 h-5 mr-2 text-blue-600" />
+                <CardTitle className="flex items-center gap-2">
+                  <CalendarIconLucide className="h-5 w-5 text-blue-600" />
                   Book New Appointment
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  {/* Appointment Type */}
+                <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
                   <div className="space-y-2">
-                    <Label htmlFor="appointmentType">
+                    <Label htmlFor="appointment-type">
                       Appointment Type <span className="text-red-500">*</span>
                     </Label>
-                    <Select
-                      value={formData.appointmentType}
-                      onValueChange={(value) => handleInputChange("appointmentType", value)}
-                      disabled={isSubmitting}
-                    >
-                      <SelectTrigger>
+                    <Select value={selectedType} onValueChange={setSelectedType}>
+                      <SelectTrigger className="h-11">
                         <SelectValue placeholder="Select appointment type" />
                       </SelectTrigger>
                       <SelectContent>
                         {appointmentTypes.map((type) => (
                           <SelectItem key={type.id} value={type.name}>
-                            {type.name} ({type.duration_minutes} min)
+                            {type.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
 
-                  {/* Date */}
                   <div className="space-y-2">
-                    <Label htmlFor="appointmentDate">
+                    <Label>
                       Date <span className="text-red-500">*</span>
                     </Label>
-                    <Input
-                      id="appointmentDate"
-                      type="date"
-                      value={formData.appointmentDate}
-                      min={today}
-                      max={maxDateString}
-                      onChange={(e) => handleInputChange("appointmentDate", e.target.value)}
-                      required
-                      disabled={isSubmitting}
-                    />
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full h-11 justify-start text-left font-normal",
+                            !selectedDate && "text-muted-foreground",
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={selectedDate}
+                          onSelect={handleDateSelect}
+                          disabled={(date) => date < new Date() || date < new Date("1900-01-01")}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </div>
 
-                  {/* Time Selector */}
                   <div className="space-y-2">
-                    <ClockTimeSelector
-                      selectedDate={formData.appointmentDate}
-                      selectedTime={formData.appointmentTime}
-                      onTimeChange={(time) => handleInputChange("appointmentTime", time)}
-                      disabled={isSubmitting}
-                    />
+                    <Label>Time</Label>
+                    {selectedDate ? (
+                      availableSlots.length > 0 ? (
+                        <Select value={selectedTime} onValueChange={setSelectedTime}>
+                          <SelectTrigger className="h-11">
+                            <SelectValue placeholder="Select time slot" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableSlots.map((slot) => (
+                              <SelectItem key={slot} value={slot}>
+                                {formatTime(slot)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <div className="flex items-center justify-center h-11 border rounded-md bg-gray-50">
+                          <p className="text-sm text-gray-500">No available slots for this date</p>
+                        </div>
+                      )
+                    ) : (
+                      <div className="flex items-center justify-center h-11 border rounded-md bg-gray-50">
+                        <CalendarIcon className="h-5 w-5 text-gray-400 mr-2" />
+                        <p className="text-sm text-gray-500">Please select a date first</p>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Notes */}
                   <div className="space-y-2">
                     <Label htmlFor="notes">Notes (optional)</Label>
                     <Textarea
                       id="notes"
-                      value={formData.notes}
-                      onChange={(e) => handleInputChange("notes", e.target.value)}
-                      rows={3}
                       placeholder="Any specific concerns or requests..."
-                      disabled={isSubmitting}
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      className="min-h-[80px] resize-none"
                     />
                   </div>
 
-                  {/* Submit Button */}
-                  <Button type="submit" disabled={isSubmitting} className="w-full bg-blue-600 hover:bg-blue-700">
-                    {isSubmitting ? (
-                      <div className="flex items-center">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Booking...
-                      </div>
-                    ) : (
-                      <div className="flex items-center">
-                        <Calendar className="w-4 h-4 mr-2" />
-                        Book Appointment
-                      </div>
-                    )}
+                  <Button
+                    type="submit"
+                    className="w-full bg-blue-600 hover:bg-blue-700 h-11"
+                    disabled={isSubmitting || !selectedType || !selectedDate || !selectedTime}
+                  >
+                    {isSubmitting ? "Booking..." : "Book Appointment"}
                   </Button>
                 </form>
               </CardContent>
@@ -342,88 +335,65 @@ export default function AppointmentsPage() {
           </div>
 
           {/* Appointments List */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-1">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <Calendar className="w-5 h-5 mr-2 text-blue-600" />
-                    Your Appointments
-                  </div>
-                  <span className="text-sm text-gray-500">{appointments.length} total</span>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="h-5 w-5" />
+                  Your Appointments
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {appointments.length > 0 ? (
+                {appointments.length === 0 ? (
+                  <div className="text-center py-6">
+                    <CalendarIconLucide className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No appointments yet</h3>
+                    <p className="text-gray-600 text-sm">Your booked appointments will appear here</p>
+                  </div>
+                ) : (
                   <div className="space-y-4">
                     {appointments
-                      .sort((a, b) => {
-                        const statusOrder = { pending: 0, approved: 1, outstanding: 2, completed: 3, cancelled: 4 }
-                        const aOrder = statusOrder[a.status] ?? 5
-                        const bOrder = statusOrder[b.status] ?? 5
-                        if (aOrder !== bOrder) return aOrder - bOrder
-                        // Secondary sort by date (newest first)
-                        return new Date(b.appointment_date).getTime() - new Date(a.appointment_date).getTime()
-                      })
+                      .sort((a, b) => new Date(b.appointment_date).getTime() - new Date(a.appointment_date).getTime())
+                      .slice(0, 5)
                       .map((appointment) => (
-                        <div key={appointment.id} className="p-4 border rounded-lg hover:bg-gray-50">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-4">
-                                <div>
-                                  <h3 className="font-medium">{appointment.appointment_type}</h3>
-                                  <p className="text-sm text-gray-600">
-                                    {formatDate(appointment.appointment_date)} at{" "}
-                                    {formatTime(appointment.appointment_time)}
-                                  </p>
-                                  {appointment.doctor && (
-                                    <p className="text-sm text-gray-500">
-                                      Dr. {appointment.doctor.first_name} {appointment.doctor.last_name}
-                                    </p>
-                                  )}
-                                  {appointment.notes && (
-                                    <p className="text-sm text-gray-600 mt-1">
-                                      <strong>Notes:</strong> {appointment.notes}
-                                    </p>
-                                  )}
+                        <div key={appointment.id} className="border rounded-lg p-3 sm:p-4">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-medium text-sm sm:text-base truncate">
+                                {appointment.appointment_type}
+                              </h4>
+                              <div className="flex flex-col sm:flex-row sm:items-center text-xs sm:text-sm text-gray-600 mt-1 gap-1 sm:gap-3">
+                                <div className="flex items-center">
+                                  <CalendarIconLucide className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                                  {formatDate(appointment.appointment_date)}
+                                </div>
+                                <div className="flex items-center">
+                                  <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                                  {formatTime(appointment.appointment_time)}
                                 </div>
                               </div>
-                            </div>
-                            <div className="flex items-center space-x-3">
-                              {/* Cancel button for pending appointments */}
-                              {appointment.status === "pending" && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleCancelAppointment(appointment.id)}
-                                  disabled={cancellingAppointments.has(appointment.id)}
-                                  className="border-red-600 text-red-600 hover:bg-red-50"
-                                >
-                                  {cancellingAppointments.has(appointment.id) ? (
-                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
-                                  ) : (
-                                    <X className="w-4 h-4" />
-                                  )}
-                                </Button>
+                              {appointment.doctor && (
+                                <div className="flex items-center text-xs sm:text-sm text-gray-600 mt-1">
+                                  <User className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                                  Dr. {appointment.doctor.first_name} {appointment.doctor.last_name}
+                                </div>
                               )}
-                              <span
-                                className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(appointment.status)}`}
-                              >
-                                {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
-                              </span>
-                              <p className="text-sm text-gray-500">
-                                {new Date(appointment.created_at).toLocaleDateString()}
-                              </p>
                             </div>
+                            <Badge className={`${getStatusColor(appointment.status)} text-xs whitespace-nowrap`}>
+                              {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
+                            </Badge>
                           </div>
                         </div>
                       ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">No appointments yet</h3>
-                    <p className="text-gray-600 mb-4">Book your first appointment to get started</p>
+                    {appointments.length > 5 && (
+                      <div className="text-center pt-2">
+                        <Link href="/dashboard">
+                          <Button variant="outline" size="sm" className="text-xs bg-transparent">
+                            View All Appointments
+                          </Button>
+                        </Link>
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>

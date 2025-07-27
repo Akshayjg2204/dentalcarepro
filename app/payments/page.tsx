@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Calendar, CreditCard, Receipt, User } from 'lucide-react'
+import { ArrowLeft, Calendar, CreditCard, Receipt } from "lucide-react"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
 import { getPatientPayments, type PatientPayment } from "@/lib/patient-payments"
@@ -85,14 +85,36 @@ export default function PaymentsPage() {
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case "paid":
+      case "fully_paid":
         return "bg-green-100 text-green-800"
       case "partial":
+      case "partial_paid":
         return "bg-yellow-100 text-yellow-800"
       case "pending":
+      case "not_paid":
         return "bg-red-100 text-red-800"
       default:
         return "bg-gray-100 text-gray-800"
     }
+  }
+
+  const getStatusText = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "fully_paid":
+        return "PAID"
+      case "partial_paid":
+        return "PARTIAL"
+      case "not_paid":
+        return "NOT_PAID"
+      default:
+        return status.toUpperCase()
+    }
+  }
+
+  // Function to clean appointment type by removing duration
+  const cleanAppointmentType = (appointmentType: string) => {
+    if (!appointmentType) return "Treatment"
+    return appointmentType.replace(/\s*$$\d+\s*min$$/gi, "").trim()
   }
 
   if (isLoading) {
@@ -194,57 +216,62 @@ export default function PaymentsPage() {
             ) : (
               <div className="space-y-4">
                 {payments.map((payment) => (
-                  <div key={payment.id} className="border rounded-lg p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <Badge className={getStatusColor(payment.payment_status)}>
-                            {payment.payment_status.toUpperCase()}
+                  <div key={payment.id} className="border rounded-lg p-4 bg-white">
+                    {/* Mobile-optimized layout */}
+                    <div className="space-y-3">
+                      {/* Header with status and treatment */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <Badge className={`${getStatusColor(payment.payment_status)} text-xs mb-2`}>
+                            {getStatusText(payment.payment_status)}
                           </Badge>
-                          <span className="font-medium text-gray-900">{payment.treatment_type}</span>
+                          <h3 className="font-medium text-base break-words">
+                            {cleanAppointmentType(payment.treatment_type)}
+                          </h3>
                         </div>
-                        <div className="text-sm text-gray-600 space-y-1">
-                          <div className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4" />
-                            Appointment: {formatDate(payment.appointment_date)}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <User className="h-4 w-4" />
-                            Dr. {payment.doctor_name}
-                          </div>
-                          {payment.payment_date && (
-                            <div className="flex items-center gap-2">
-                              <CreditCard className="h-4 w-4" />
-                              Payment Date: {formatDate(payment.payment_date)}
-                            </div>
-                          )}
-                          {payment.payment_method && (
-                            <div className="flex items-center gap-2">
-                              <CreditCard className="h-4 w-4" />
-                              Method: {payment.payment_method}
-                            </div>
-                          )}
+                        <div className="text-right flex-shrink-0">
+                          <div className="text-sm text-gray-600">Total:</div>
+                          <div className="font-semibold">{formatCurrency(payment.total_amount)}</div>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className="space-y-1">
-                          <div className="text-sm text-gray-600">
-                            Total: <span className="font-medium">{formatCurrency(payment.total_amount)}</span>
-                          </div>
-                          <div className="text-sm text-gray-600">
-                            Paid:{" "}
-                            <span className="font-medium text-green-600">{formatCurrency(payment.amount_paid)}</span>
-                          </div>
-                          {payment.outstanding_balance > 0 && (
-                            <div className="text-sm text-gray-600">
-                              Outstanding:{" "}
-                              <span className="font-medium text-red-600">
-                                {formatCurrency(payment.outstanding_balance)}
-                              </span>
-                            </div>
-                          )}
-                        </div>
+
+                      {/* Appointment date */}
+                      <div className="flex items-center text-sm text-gray-600">
+                        <Calendar className="h-4 w-4 mr-2 flex-shrink-0" />
+                        <span>Appointment: {formatDate(payment.appointment_date)}</span>
                       </div>
+
+                      {/* Payment details in a grid for mobile */}
+                      <div className="grid grid-cols-2 gap-4 pt-2 border-t">
+                        <div>
+                          <div className="text-xs text-gray-600">Amount Paid</div>
+                          <div className="font-medium text-green-600">{formatCurrency(payment.amount_paid)}</div>
+                        </div>
+                        {payment.outstanding_balance > 0 && (
+                          <div>
+                            <div className="text-xs text-gray-600">Outstanding</div>
+                            <div className="font-medium text-red-600">
+                              {formatCurrency(payment.outstanding_balance)}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Payment date if available */}
+                      {payment.payment_date && (
+                        <div className="flex items-center text-sm text-gray-600">
+                          <CreditCard className="h-4 w-4 mr-2 flex-shrink-0" />
+                          <span>Payment Date: {formatDate(payment.payment_date)}</span>
+                        </div>
+                      )}
+
+                      {/* Payment method if available */}
+                      {payment.payment_method && (
+                        <div className="flex items-center text-sm text-gray-600">
+                          <CreditCard className="h-4 w-4 mr-2 flex-shrink-0" />
+                          <span>Method: {payment.payment_method}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}

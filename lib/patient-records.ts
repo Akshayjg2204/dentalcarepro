@@ -22,7 +22,23 @@ export async function getAllPatientRecords(): Promise<PatientRecord[]> {
   try {
     const { data, error } = await supabase
       .from("users")
-      .select("*")
+      .select(`
+        id,
+        email,
+        first_name,
+        last_name,
+        phone,
+        role,
+        date_of_birth,
+        address,
+        emergency_contact_name,
+        emergency_contact_phone,
+        medical_conditions,
+        allergies,
+        dental_history,
+        created_at,
+        updated_at
+      `)
       .eq("role", "patient")
       .order("created_at", { ascending: false })
 
@@ -40,7 +56,28 @@ export async function getAllPatientRecords(): Promise<PatientRecord[]> {
 
 export async function getPatientRecord(patientId: string): Promise<PatientRecord> {
   try {
-    const { data, error } = await supabase.from("users").select("*").eq("id", patientId).eq("role", "patient").single()
+    const { data, error } = await supabase
+      .from("users")
+      .select(`
+        id,
+        email,
+        first_name,
+        last_name,
+        phone,
+        role,
+        date_of_birth,
+        address,
+        emergency_contact_name,
+        emergency_contact_phone,
+        medical_conditions,
+        allergies,
+        dental_history,
+        created_at,
+        updated_at
+      `)
+      .eq("id", patientId)
+      .eq("role", "patient")
+      .single()
 
     if (error) {
       console.error("Error fetching patient record:", error)
@@ -60,15 +97,55 @@ export async function getPatientRecord(patientId: string): Promise<PatientRecord
 
 export async function updatePatientRecord(patientId: string, updates: Partial<PatientRecord>): Promise<PatientRecord> {
   try {
+    // Filter out any undefined values and only include valid columns
+    const validUpdates: any = {}
+
+    // Basic fields
+    if (updates.first_name !== undefined) validUpdates.first_name = updates.first_name
+    if (updates.last_name !== undefined) validUpdates.last_name = updates.last_name
+    if (updates.email !== undefined) validUpdates.email = updates.email
+    if (updates.phone !== undefined) validUpdates.phone = updates.phone
+    if (updates.date_of_birth !== undefined) validUpdates.date_of_birth = updates.date_of_birth
+    if (updates.address !== undefined) validUpdates.address = updates.address
+
+    // Emergency contact fields
+    if (updates.emergency_contact_name !== undefined)
+      validUpdates.emergency_contact_name = updates.emergency_contact_name
+    if (updates.emergency_contact_phone !== undefined)
+      validUpdates.emergency_contact_phone = updates.emergency_contact_phone
+
+    // Medical fields - ensure they exist in the database
+    if (updates.medical_conditions !== undefined) validUpdates.medical_conditions = updates.medical_conditions
+    if (updates.allergies !== undefined) validUpdates.allergies = updates.allergies
+    if (updates.dental_history !== undefined) validUpdates.dental_history = updates.dental_history
+
+    // Always update the timestamp
+    validUpdates.updated_at = new Date().toISOString()
+
+    console.log("Updating patient with data:", validUpdates)
+
     const { data, error } = await supabase
       .from("users")
-      .update({
-        ...updates,
-        updated_at: new Date().toISOString(),
-      })
+      .update(validUpdates)
       .eq("id", patientId)
       .eq("role", "patient")
-      .select()
+      .select(`
+        id,
+        email,
+        first_name,
+        last_name,
+        phone,
+        role,
+        date_of_birth,
+        address,
+        emergency_contact_name,
+        emergency_contact_phone,
+        medical_conditions,
+        allergies,
+        dental_history,
+        created_at,
+        updated_at
+      `)
       .single()
 
     if (error) {
@@ -91,7 +168,23 @@ export async function searchPatientRecords(searchTerm: string): Promise<PatientR
   try {
     const { data, error } = await supabase
       .from("users")
-      .select("*")
+      .select(`
+        id,
+        email,
+        first_name,
+        last_name,
+        phone,
+        role,
+        date_of_birth,
+        address,
+        emergency_contact_name,
+        emergency_contact_phone,
+        medical_conditions,
+        allergies,
+        dental_history,
+        created_at,
+        updated_at
+      `)
       .eq("role", "patient")
       .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`)
       .order("created_at", { ascending: false })

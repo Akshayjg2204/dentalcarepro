@@ -2,15 +2,15 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Eye, EyeOff, ArrowLeft } from "lucide-react"
-import { signIn } from "@/lib/auth"
+import { Eye, EyeOff, ArrowLeft } from 'lucide-react'
+import { signIn, getCurrentUser } from "@/lib/auth"
 import { toast } from "sonner"
 
 export default function LoginPage() {
@@ -18,7 +18,32 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true)
   const router = useRouter()
+
+  useEffect(() => {
+    checkExistingAuth()
+  }, [])
+
+  const checkExistingAuth = async () => {
+    try {
+      const user = await getCurrentUser()
+      if (user) {
+        // User is already logged in, redirect to appropriate dashboard
+        if (user.profile.role === "admin") {
+          router.push("/admin")
+        } else {
+          router.push("/dashboard")
+        }
+        return
+      }
+    } catch (error) {
+      // User is not logged in, continue with login page
+      console.log("No existing session found")
+    } finally {
+      setIsCheckingAuth(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -55,6 +80,17 @@ export default function LoginPage() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center p-4">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Checking authentication...</p>
+        </div>
+      </div>
+    )
   }
 
   return (

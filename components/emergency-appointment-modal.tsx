@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
-import { Search, UserPlus, Clock } from "lucide-react"
+import { Search, UserPlus, Clock, Stethoscope, Users } from 'lucide-react'
 import { supabase } from "@/lib/supabase"
 import { createAppointment } from "@/lib/actions/appointment.actions"
 import { EnhancedTimeSelector } from "@/components/enhanced-time-selector"
@@ -21,18 +21,34 @@ interface Patient {
   phone?: string
 }
 
+interface User {
+  id: string
+  first_name: string
+  last_name: string
+  email: string
+  role: string
+}
+
 interface EmergencyAppointmentModalProps {
   isOpen: boolean
   onClose: () => void
   onAppointmentCreated: () => void
+  preSelectedPatient?: Patient | null
 }
 
-export function EmergencyAppointmentModal({ isOpen, onClose, onAppointmentCreated }: EmergencyAppointmentModalProps) {
+export function EmergencyAppointmentModal({
+  isOpen,
+  onClose,
+  onAppointmentCreated,
+  preSelectedPatient,
+}: EmergencyAppointmentModalProps) {
   const [step, setStep] = useState<"search" | "create" | "appointment">("search")
   const [searchTerm, setSearchTerm] = useState("")
   const [patients, setPatients] = useState<Patient[]>([])
   const [filteredPatients, setFilteredPatients] = useState<Patient[]>([])
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
+  const [doctors, setDoctors] = useState<User[]>([])
+  const [staff, setStaff] = useState<User[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
 
@@ -53,6 +69,8 @@ export function EmergencyAppointmentModal({ isOpen, onClose, onAppointmentCreate
     appointmentDate: "",
     appointmentTime: "",
     notes: "",
+    doctorId: "none",
+    staffId: "none",
   })
 
   const appointmentTypes = [
@@ -68,10 +86,19 @@ export function EmergencyAppointmentModal({ isOpen, onClose, onAppointmentCreate
 
   useEffect(() => {
     if (isOpen) {
-      fetchPatients()
+      if (preSelectedPatient) {
+        // If a patient is pre-selected, skip to appointment step
+        setSelectedPatient(preSelectedPatient)
+        setStep("appointment")
+      } else {
+        // Otherwise, start with search
+        fetchPatients()
+        setStep("search")
+      }
+      fetchDoctorsAndStaff()
       resetForm()
     }
-  }, [isOpen])
+  }, [isOpen, preSelectedPatient])
 
   useEffect(() => {
     if (searchTerm) {
@@ -89,9 +116,11 @@ export function EmergencyAppointmentModal({ isOpen, onClose, onAppointmentCreate
   }, [searchTerm, patients])
 
   const resetForm = () => {
-    setStep("search")
+    if (!preSelectedPatient) {
+      setStep("search")
+      setSelectedPatient(null)
+    }
     setSearchTerm("")
-    setSelectedPatient(null)
     setNewPatient({
       firstName: "",
       lastName: "",
@@ -106,6 +135,8 @@ export function EmergencyAppointmentModal({ isOpen, onClose, onAppointmentCreate
       appointmentDate: "",
       appointmentTime: "",
       notes: "",
+      doctorId: "none",
+      staffId: "none",
     })
   }
 
@@ -123,6 +154,26 @@ export function EmergencyAppointmentModal({ isOpen, onClose, onAppointmentCreate
     } catch (error: any) {
       console.error("Error fetching patients:", error)
       toast.error("Failed to load patients")
+    }
+  }
+
+  const fetchDoctorsAndStaff = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .select("id, first_name, last_name, email, role")
+        .in("role", ["doctor", "staff"])
+        .order("first_name")
+
+      if (error) throw error
+
+      const doctors = data?.filter((user) => user.role === "doctor") || []
+      const staff = data?.filter((user) => user.role === "staff") || []
+
+      setDoctors(doctors)
+      setStaff(staff)
+    } catch (error: any) {
+      console.error("Error fetching doctors and staff:", error)
     }
   }
 
@@ -193,6 +244,15 @@ export function EmergencyAppointmentModal({ isOpen, onClose, onAppointmentCreate
       })
 
       if (result.success) {
+        // If doctor or staff are assigned, update the appointment
+        if (appointmentData.doctorId !== "none" || appointmentData.staffId !== "none") {
+          const updateData: any = {}
+          if (appointmentData.doctorId !== "none") updateData.doctor_id = appointmentData.doctorId
+          if (appointmentData.staffId !== "none") updateData.staff_id = appointmentData.staffId
+
+          await supabase.from("appointments").update(updateData).eq("id", result.data.id)
+        }
+
         toast.success("Walk-in appointment created successfully!")
         onAppointmentCreated()
         onClose()
@@ -209,6 +269,15 @@ export function EmergencyAppointmentModal({ isOpen, onClose, onAppointmentCreate
 
   const handleTimeSelect = (time: string) => {
     setAppointmentData((prev) => ({ ...prev, appointmentTime: time }))
+  }
+
+  const handleBackToSearch = () => {
+    if (preSelectedPatient) {
+      // If there was a pre-selected patient, close the modal instead of going back
+      onClose()
+    } else {
+      setStep("search")
+    }
   }
 
   return (
@@ -392,6 +461,54 @@ export function EmergencyAppointmentModal({ isOpen, onClose, onAppointmentCreate
               </Select>
             </div>
 
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="flex items-center">
+                  <Stethoscope className="w-4 h-4 mr-2 text-green-600" />
+                  Assign Doctor (Optional)
+                </Label>
+                <Select
+                  value={appointmentData.doctorId}
+                  onValueChange={(value) => setAppointmentData((prev) => ({ ...prev, doctorId: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select doctor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No doctor assigned</SelectItem>
+                    {doctors.map((doctor) => (
+                      <SelectItem key={doctor.id} value={doctor.id}>
+                        Dr. {doctor.first_name} {doctor.last_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="flex items-center">
+                  <Users className="w-4 h-4 mr-2 text-blue-600" />
+                  Assign Staff (Optional)
+                </Label>
+                <Select
+                  value={appointmentData.staffId}
+                  onValueChange={(value) => setAppointmentData((prev) => ({ ...prev, staffId: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select staff" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No staff assigned</SelectItem>
+                    {staff.map((staffMember) => (
+                      <SelectItem key={staffMember.id} value={staffMember.id}>
+                        {staffMember.first_name} {staffMember.last_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="appointmentDate">Date *</Label>
               <Input
@@ -422,8 +539,8 @@ export function EmergencyAppointmentModal({ isOpen, onClose, onAppointmentCreate
             </div>
 
             <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep("search")} className="bg-transparent">
-                Back to Patient Search
+              <Button variant="outline" onClick={handleBackToSearch} className="bg-transparent">
+                {preSelectedPatient ? "Cancel" : "Back to Patient Search"}
               </Button>
               <Button onClick={handleCreateAppointment} disabled={isCreating} className="bg-blue-600 hover:bg-blue-700">
                 {isCreating ? "Creating..." : "Create Walk-in Appointment"}

@@ -8,7 +8,7 @@ import { getAllAppointments, updateAppointmentStatus, type Appointment } from "@
 import { getAllPayments, type Payment } from "@/lib/payments"
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
-import { Search, UserPlus, UsersIcon, Trash2, RefreshCw, Check, X, CalendarIcon } from "lucide-react"
+import { Search, UserPlus, UsersIcon, Trash2, RefreshCw, Check, X, CalendarIcon, AlertTriangle, UserCheck, Target } from 'lucide-react'
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import Link from "next/link"
@@ -16,25 +16,15 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import {
-  ArrowLeft,
-  LogOut,
-  Calendar,
-  IndianRupee,
-  AlertTriangle,
-  Users,
-  CalendarDays,
-  FileText,
-  Settings,
-  Plus,
-  CreditCard,
-  UserCheck,
-} from "lucide-react"
+import { ArrowLeft, LogOut, Calendar, IndianRupee, Users, CalendarDays, FileText, Settings, Plus, CreditCard, Stethoscope } from 'lucide-react'
 import { CompleteAppointmentModal } from "@/components/complete-appointment-modal"
 import { getPaymentStats } from "@/lib/payments"
 import { EmergencyAppointmentModal } from "@/components/emergency-appointment-modal"
 import { PatientProfileModal } from "@/components/patient-profile-modal"
 import { PatientManagementSection } from "@/components/patient-management"
+import { AppointmentAssignmentModal } from "@/components/appointment-assignment-modal"
+import { DueAppointmentsModal } from "@/components/due-appointments-modal"
+import { LeadsManagement } from "@/components/leads-management"
 
 export default function AdminDashboard() {
   const [currentUser, setCurrentUser] = useState<any>(null)
@@ -52,8 +42,10 @@ export default function AdminDashboard() {
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null)
   const [isCleaningUp, setIsCleaningUp] = useState(false)
   const [processingAppointments, setProcessingAppointments] = useState<Set<string>>(new Set())
+  const [deletingAppointments, setDeletingAppointments] = useState<Set<string>>(new Set())
   const router = useRouter()
   const [completeModalAppointment, setCompleteModalAppointment] = useState<Appointment | null>(null)
+  const [assignmentModalAppointment, setAssignmentModalAppointment] = useState<Appointment | null>(null)
   const [paymentStats, setPaymentStats] = useState({
     totalRevenue: 0,
     totalPaid: 0,
@@ -67,6 +59,7 @@ export default function AdminDashboard() {
     isOpen: false,
     patientId: "",
   })
+  const [isDueAppointmentsModalOpen, setIsDueAppointmentsModalOpen] = useState(false)
 
   const filterAppointments = () => {
     let filtered = appointments
@@ -220,14 +213,50 @@ export default function AdminDashboard() {
     setProcessingAppointments((prev) => new Set(prev).add(appointmentId))
 
     try {
-      await updateAppointmentStatus(appointmentId, action)
-      toast.success(`Appointment ${action} successfully!`)
+      if (action === "approved") {
+        // For approved appointments, open assignment modal
+        const appointment = appointments.find((apt) => apt.id === appointmentId)
+        if (appointment) {
+          await updateAppointmentStatus(appointmentId, action)
+          setAssignmentModalAppointment(appointment)
+          toast.success("Appointment approved! You can now assign staff and doctor.")
+        }
+      } else {
+        await updateAppointmentStatus(appointmentId, action)
+        toast.success(`Appointment ${action} successfully!`)
+      }
       fetchAppointments()
       fetchPaymentStats()
     } catch (error: any) {
       toast.error(`Failed to ${action.slice(0, -1)} appointment: ` + (error.message || "Unknown error"))
     } finally {
       setProcessingAppointments((prev) => {
+        const newSet = new Set(prev)
+        newSet.delete(appointmentId)
+        return newSet
+      })
+    }
+  }
+
+  const handleDeleteAppointment = async (appointmentId: string) => {
+    if (!confirm("Are you sure you want to delete this appointment? This action cannot be undone.")) {
+      return
+    }
+
+    setDeletingAppointments((prev) => new Set(prev).add(appointmentId))
+
+    try {
+      const { error } = await supabase.from("appointments").delete().eq("id", appointmentId)
+
+      if (error) throw error
+
+      toast.success("Appointment deleted successfully!")
+      fetchAppointments()
+      fetchPaymentStats()
+    } catch (error: any) {
+      toast.error("Failed to delete appointment: " + (error.message || "Unknown error"))
+    } finally {
+      setDeletingAppointments((prev) => {
         const newSet = new Set(prev)
         newSet.delete(appointmentId)
         return newSet
@@ -248,6 +277,19 @@ export default function AdminDashboard() {
       toast.error("Cleanup failed: " + (error.message || "Unknown error"))
     } finally {
       setIsCleaningUp(false)
+    }
+  }
+
+  const handleDueAppointmentsClick = () => {
+    const today = new Date().toISOString().split("T")[0]
+    const dueAppointments = appointments.filter(
+      (apt) => apt.status === "approved" && apt.appointment_date <= today,
+    )
+    
+    if (dueAppointments.length === 0) {
+      toast.info("No due appointments for today")
+    } else {
+      setIsDueAppointmentsModalOpen(true)
     }
   }
 
@@ -335,6 +377,11 @@ export default function AdminDashboard() {
     fetchPaymentStats()
     fetchPayments()
     setCompleteModalAppointment(null)
+  }
+
+  const handleAssignmentUpdated = () => {
+    fetchAppointments()
+    setAssignmentModalAppointment(null)
   }
 
   return (
@@ -427,7 +474,7 @@ export default function AdminDashboard() {
 
         {/* Enhanced Navigation Tabs */}
         <Tabs defaultValue="overview" className="space-y-6 sm:space-y-8">
-          <TabsList className="grid w-full grid-cols-4 max-w-3xl mx-auto h-14 sm:h-16 p-1 sm:p-2 bg-gray-100 rounded-xl">
+          <TabsList className="grid w-full grid-cols-5 max-w-4xl mx-auto h-14 sm:h-16 p-1 sm:p-2 bg-gray-100 rounded-xl">
             <TabsTrigger
               value="overview"
               className="flex items-center justify-center space-x-1 h-10 sm:h-12 text-xs sm:text-sm font-medium rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all duration-200"
@@ -458,6 +505,14 @@ export default function AdminDashboard() {
               <span className="sm:hidden">Patients</span>
             </TabsTrigger>
             <TabsTrigger
+              value="leads"
+              className="flex items-center justify-center space-x-1 h-10 sm:h-12 text-xs sm:text-sm font-medium rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all duration-200"
+            >
+              <Target className="w-4 h-4" />
+              <span className="hidden sm:inline">Leads</span>
+              <span className="sm:hidden">Leads</span>
+            </TabsTrigger>
+            <TabsTrigger
               value="users"
               className="flex items-center justify-center space-x-1 h-10 sm:h-12 text-xs sm:text-sm font-medium rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all duration-200"
             >
@@ -478,18 +533,17 @@ export default function AdminDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                    <Link href="/admin/all-appointments" className="w-full">
-                      <Button
-                        variant="outline"
-                        className="h-16 sm:h-20 flex-col space-y-1 sm:space-y-2 bg-transparent w-full text-xs sm:text-sm"
-                      >
-                        <CalendarDays className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
-                        <div className="text-center">
-                          <p className="font-medium">All Appointments</p>
-                          <p className="text-xs text-gray-500 hidden sm:block">View and manage all appointments</p>
-                        </div>
-                      </Button>
-                    </Link>
+                    <Button
+                      variant="outline"
+                      className="h-16 sm:h-20 flex-col space-y-1 sm:space-y-2 bg-transparent w-full text-xs sm:text-sm"
+                      onClick={handleDueAppointmentsClick}
+                    >
+                      <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-orange-600" />
+                      <div className="text-center">
+                        <p className="font-medium">Due Assignments</p>
+                        <p className="text-xs text-gray-500 hidden sm:block">Appointments not completed today</p>
+                      </div>
+                    </Button>
 
                     <Link href="/admin/patient-records" className="w-full">
                       <Button
@@ -651,6 +705,34 @@ export default function AdminDashboard() {
                                 )}
                               </div>
 
+                              {/* Staff and Doctor Assignment */}
+                              {(appointment.doctor || appointment.staff) && (
+                                <div className="bg-gray-50 p-2 rounded text-xs space-y-1">
+                                  {appointment.doctor && (
+                                    <div className="flex items-center">
+                                      <Stethoscope className="w-3 h-3 mr-1 text-green-600" />
+                                      <span>
+                                        Dr. {appointment.doctor.first_name} {appointment.doctor.last_name}
+                                      </span>
+                                    </div>
+                                  )}
+                                  {appointment.staff && (
+                                    <div className="flex items-center">
+                                      <Users className="w-3 h-3 mr-1 text-blue-600" />
+                                      <span>
+                                        {appointment.staff.first_name} {appointment.staff.last_name}
+                                      </span>
+                                    </div>
+                                  )}
+                                  {!appointment.doctor && !appointment.staff && (
+                                    <div className="flex items-center text-gray-500">
+                                      <UserCheck className="w-3 h-3 mr-1" />
+                                      <span>No staff assigned</span>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
                               {/* Payment Details */}
                               {payment && appointment.status === "completed" && (
                                 <div className="bg-gray-50 p-2 rounded text-xs space-y-1">
@@ -717,13 +799,24 @@ export default function AdminDashboard() {
                                   </>
                                 )}
                                 {appointment.status === "approved" && (
-                                  <Button
-                                    size="sm"
-                                    onClick={() => setCompleteModalAppointment(appointment)}
-                                    className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1 h-7"
-                                  >
-                                    Complete
-                                  </Button>
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      onClick={() => setCompleteModalAppointment(appointment)}
+                                      className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1 h-7"
+                                    >
+                                      Complete
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => setAssignmentModalAppointment(appointment)}
+                                      className="border-purple-600 text-purple-600 hover:bg-purple-50 text-xs px-2 py-1 h-7"
+                                    >
+                                      <UserCheck className="w-3 h-3 mr-1" />
+                                      Assign
+                                    </Button>
+                                  </>
                                 )}
                                 {payment && payment.payment_status === "partial_paid" && (
                                   <Button
@@ -736,6 +829,19 @@ export default function AdminDashboard() {
                                     Update Payment
                                   </Button>
                                 )}
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleDeleteAppointment(appointment.id)}
+                                  disabled={deletingAppointments.has(appointment.id)}
+                                  className="border-red-600 text-red-600 hover:bg-red-50 text-xs px-2 py-1 h-7"
+                                >
+                                  {deletingAppointments.has(appointment.id) ? (
+                                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-600"></div>
+                                  ) : (
+                                    <Trash2 className="w-3 h-3" />
+                                  )}
+                                </Button>
                               </div>
                             </div>
 
@@ -753,6 +859,32 @@ export default function AdminDashboard() {
                                   <div className="text-left sm:text-center">
                                     <p className="text-sm font-medium">{formatDate(appointment.appointment_date)}</p>
                                     <p className="text-sm text-gray-600">{formatTime(appointment.appointment_time)}</p>
+                                  </div>
+                                  {/* Staff and Doctor Assignment */}
+                                  <div className="text-left sm:text-center">
+                                    <p className="text-xs text-gray-500 mb-1">Assigned to</p>
+                                    {appointment.doctor && (
+                                      <div className="flex items-center text-xs text-green-600 mb-1">
+                                        <Stethoscope className="w-3 h-3 mr-1" />
+                                        <span>
+                                          Dr. {appointment.doctor.first_name} {appointment.doctor.last_name}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {appointment.staff && (
+                                      <div className="flex items-center text-xs text-blue-600 mb-1">
+                                        <Users className="w-3 h-3 mr-1" />
+                                        <span>
+                                          {appointment.staff.first_name} {appointment.staff.last_name}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {!appointment.doctor && !appointment.staff && (
+                                      <div className="flex items-center text-xs text-gray-400">
+                                        <UserCheck className="w-3 h-3 mr-1" />
+                                        <span>Not assigned</span>
+                                      </div>
+                                    )}
                                   </div>
                                   {appointment.notes && (
                                     <div className="max-w-full sm:max-w-xs">
@@ -825,13 +957,24 @@ export default function AdminDashboard() {
                                   </div>
                                 )}
                                 {appointment.status === "approved" && (
-                                  <Button
-                                    size="sm"
-                                    onClick={() => setCompleteModalAppointment(appointment)}
-                                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                                  >
-                                    Complete
-                                  </Button>
+                                  <div className="flex gap-2">
+                                    <Button
+                                      size="sm"
+                                      onClick={() => setCompleteModalAppointment(appointment)}
+                                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                                    >
+                                      Complete
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => setAssignmentModalAppointment(appointment)}
+                                      className="border-purple-600 text-purple-600 hover:bg-purple-50"
+                                    >
+                                      <UserCheck className="w-4 h-4 mr-1" />
+                                      Assign
+                                    </Button>
+                                  </div>
                                 )}
                                 {/* Update Payment Button for Partial Payments */}
                                 {payment && payment.payment_status === "partial_paid" && (
@@ -845,9 +988,24 @@ export default function AdminDashboard() {
                                     Update Payment
                                   </Button>
                                 )}
-                                <Badge className={getStatusColor(appointment.status)}>
-                                  {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
-                                </Badge>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleDeleteAppointment(appointment.id)}
+                                    disabled={deletingAppointments.has(appointment.id)}
+                                    className="border-red-600 text-red-600 hover:bg-red-50"
+                                  >
+                                    {deletingAppointments.has(appointment.id) ? (
+                                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
+                                    ) : (
+                                      <Trash2 className="w-4 h-4" />
+                                    )}
+                                  </Button>
+                                  <Badge className={getStatusColor(appointment.status)}>
+                                    {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
+                                  </Badge>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -871,6 +1029,13 @@ export default function AdminDashboard() {
 
           <TabsContent value="patients">
             <PatientManagementSection
+              currentUserId={currentUser?.profile?.id || ""}
+              currentUserRole={currentUser?.profile?.role || ""}
+            />
+          </TabsContent>
+
+          <TabsContent value="leads">
+            <LeadsManagement
               currentUserId={currentUser?.profile?.id || ""}
               currentUserRole={currentUser?.profile?.role || ""}
             />
@@ -1154,6 +1319,12 @@ export default function AdminDashboard() {
         appointment={completeModalAppointment}
         onAppointmentCompleted={handleCompleteAppointment}
       />
+      <AppointmentAssignmentModal
+        isOpen={!!assignmentModalAppointment}
+        onClose={() => setAssignmentModalAppointment(null)}
+        appointment={assignmentModalAppointment}
+        onAssignmentUpdated={handleAssignmentUpdated}
+      />
       <EmergencyAppointmentModal
         isOpen={isWalkInModalOpen}
         onClose={() => setIsWalkInModalOpen(false)}
@@ -1169,6 +1340,14 @@ export default function AdminDashboard() {
         patientId={patientProfileModal.patientId}
         currentUserId={currentUser?.profile?.id || ""}
         currentUserRole={currentUser?.profile?.role || ""}
+      />
+      <DueAppointmentsModal
+        isOpen={isDueAppointmentsModalOpen}
+        onClose={() => setIsDueAppointmentsModalOpen(false)}
+        appointments={appointments}
+        payments={payments}
+        onCompleteAppointment={(appointment) => setCompleteModalAppointment(appointment)}
+        onAssignAppointment={(appointment) => setAssignmentModalAppointment(appointment)}
       />
     </div>
   )

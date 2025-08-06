@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { PatientProfileModal } from "@/components/patient-profile-modal"
+import { EmergencyAppointmentModal } from "@/components/emergency-appointment-modal"
 
 interface PatientWithStats {
   id: string
@@ -40,6 +41,10 @@ export function PatientManagementSection({ currentUserId, currentUserRole }: Pat
   const [patientProfileModal, setPatientProfileModal] = useState<{ isOpen: boolean; patientId: string }>({
     isOpen: false,
     patientId: "",
+  })
+  const [walkInModal, setWalkInModal] = useState<{ isOpen: boolean; patient: PatientWithStats | null }>({
+    isOpen: false,
+    patient: null,
   })
 
   useEffect(() => {
@@ -138,6 +143,10 @@ export function PatientManagementSection({ currentUserId, currentUserRole }: Pat
     return "bg-gray-100 text-gray-800"
   }
 
+  const handleWalkInAppointment = (patient: PatientWithStats) => {
+    setWalkInModal({ isOpen: true, patient })
+  }
+
   if (isLoading) {
     return (
       <Card>
@@ -212,14 +221,24 @@ export function PatientManagementSection({ currentUserId, currentUserRole }: Pat
                           {patient.phone && <p className="text-xs text-gray-500">{patient.phone}</p>}
                         </div>
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPatientProfileModal({ isOpen: true, patientId: patient.id })}
-                        className="bg-transparent"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Button>
+                      <div className="flex flex-col gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setPatientProfileModal({ isOpen: true, patientId: patient.id })}
+                          className="bg-transparent text-xs"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleWalkInAppointment(patient)}
+                          className="bg-transparent text-orange-600 hover:text-orange-700 border-orange-600 hover:bg-orange-50 text-xs"
+                        >
+                          <Calendar className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
 
                     {/* Stats Grid for Mobile */}
@@ -317,6 +336,15 @@ export function PatientManagementSection({ currentUserId, currentUserRole }: Pat
                           <Eye className="w-4 h-4 mr-1" />
                           View Profile
                         </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleWalkInAppointment(patient)}
+                          className="bg-transparent text-orange-600 hover:text-orange-700 border-orange-600 hover:bg-orange-50"
+                        >
+                          <Calendar className="w-4 h-4 mr-1" />
+                          Walk-in
+                        </Button>
                       </div>
                     </div>
                   </div>
@@ -333,6 +361,16 @@ export function PatientManagementSection({ currentUserId, currentUserRole }: Pat
         patientId={patientProfileModal.patientId}
         currentUserId={currentUserId}
         currentUserRole={currentUserRole}
+      />
+
+      <EmergencyAppointmentModal
+        isOpen={walkInModal.isOpen}
+        onClose={() => setWalkInModal({ isOpen: false, patient: null })}
+        preSelectedPatient={walkInModal.patient}
+        onAppointmentCreated={() => {
+          fetchPatientsWithStats()
+          setWalkInModal({ isOpen: false, patient: null })
+        }}
       />
     </div>
   )

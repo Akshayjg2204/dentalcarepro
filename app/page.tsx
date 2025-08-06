@@ -3,9 +3,10 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Phone, MapPin, Clock, Stethoscope } from "lucide-react"
+import { Phone, MapPin, Clock, Stethoscope } from 'lucide-react'
 import Link from "next/link"
 import { getClinicSettings } from "@/lib/clinic-settings"
+import { getCurrentUser } from "@/lib/auth"
 
 interface ClinicSettings {
   clinic_name: string
@@ -24,11 +25,26 @@ interface ClinicSettings {
 
 export default function HomePage() {
   const [clinicSettings, setClinicSettings] = useState<ClinicSettings | null>(null)
+  const [currentUser, setCurrentUser] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true)
 
   useEffect(() => {
-    fetchClinicSettings()
+    Promise.all([fetchClinicSettings(), checkAuthentication()])
   }, [])
+
+  const checkAuthentication = async () => {
+    try {
+      const user = await getCurrentUser()
+      setCurrentUser(user)
+    } catch (error) {
+      console.error("Auth check error:", error)
+      // Don't show error toast on home page, just set user to null
+      setCurrentUser(null)
+    } finally {
+      setIsCheckingAuth(false)
+    }
+  }
 
   const fetchClinicSettings = async () => {
     try {
@@ -115,6 +131,36 @@ export default function HomePage() {
     return true
   }
 
+  const getDashboardLink = () => {
+    if (!currentUser) return "/login"
+    
+    // Redirect based on role
+    if (currentUser.profile.role === "admin") {
+      return "/admin"
+    } else {
+      return "/dashboard"
+    }
+  }
+
+  const getButtonText = () => {
+    if (isCheckingAuth) return "Loading..."
+    if (!currentUser) return "Login"
+    
+    // Show role-specific text
+    switch (currentUser.profile.role) {
+      case "admin":
+        return "Admin Dashboard"
+      case "doctor":
+        return "Doctor Dashboard"
+      case "staff":
+        return "Staff Dashboard"
+      case "patient":
+        return "Patient Dashboard"
+      default:
+        return "Dashboard"
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 flex items-center justify-center">
@@ -152,15 +198,23 @@ export default function HomePage() {
           {/* Subtext */}
           <p className="text-xl mb-8 opacity-90">{clinicSettings?.description || "Best Dentist in KoparKhairane"}</p>
 
-          {/* Login Button */}
-          <Link href="/login">
+          {/* Dynamic Login/Dashboard Button */}
+          <Link href={getDashboardLink()}>
             <Button
               size="lg"
               className="bg-white text-blue-700 hover:bg-gray-100 font-semibold px-8 py-3 rounded-lg text-lg"
+              disabled={isCheckingAuth}
             >
-              Login
+              {getButtonText()}
             </Button>
           </Link>
+
+          {/* Show user info if logged in */}
+          {currentUser && !isCheckingAuth && (
+            <p className="mt-4 text-sm opacity-75">
+              Welcome back, {currentUser.profile.first_name} {currentUser.profile.last_name}
+            </p>
+          )}
         </div>
       </div>
 

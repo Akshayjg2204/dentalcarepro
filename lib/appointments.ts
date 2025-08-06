@@ -4,6 +4,7 @@ export interface Appointment {
   id: string
   patient_id: string
   doctor_id?: string
+  staff_id?: string
   appointment_date: string
   appointment_time: string
   appointment_type: string
@@ -13,6 +14,12 @@ export interface Appointment {
   updated_at?: string
   priority?: "normal" | "high" | "urgent"
   doctor?: {
+    id: string
+    first_name: string
+    last_name: string
+    email: string
+  }
+  staff?: {
     id: string
     first_name: string
     last_name: string
@@ -115,6 +122,12 @@ export async function getPatientAppointments(patientId: string): Promise<Appoint
           first_name,
           last_name,
           email
+        ),
+        staff:users!appointments_staff_id_fkey(
+          id,
+          first_name,
+          last_name,
+          email
         )
       `)
       .eq("patient_id", patientId)
@@ -131,6 +144,7 @@ export async function getPatientAppointments(patientId: string): Promise<Appoint
       id: appointment.id,
       patient_id: appointment.patient_id,
       doctor_id: appointment.doctor_id,
+      staff_id: appointment.staff_id,
       appointment_date: appointment.appointment_date,
       appointment_time: appointment.appointment_time,
       appointment_type: appointment.appointment_type,
@@ -145,6 +159,14 @@ export async function getPatientAppointments(patientId: string): Promise<Appoint
             first_name: appointment.doctor.first_name,
             last_name: appointment.doctor.last_name,
             email: appointment.doctor.email,
+          }
+        : undefined,
+      staff: appointment.staff
+        ? {
+            id: appointment.staff.id,
+            first_name: appointment.staff.first_name,
+            last_name: appointment.staff.last_name,
+            email: appointment.staff.email,
           }
         : undefined,
     }))
@@ -169,6 +191,12 @@ export async function getAllAppointments(): Promise<Appointment[]> {
           last_name,
           email
         ),
+        staff:users!appointments_staff_id_fkey(
+          id,
+          first_name,
+          last_name,
+          email
+        ),
         patient:users!appointments_patient_id_fkey(
           id,
           first_name,
@@ -188,6 +216,7 @@ export async function getAllAppointments(): Promise<Appointment[]> {
       id: appointment.id,
       patient_id: appointment.patient_id,
       doctor_id: appointment.doctor_id,
+      staff_id: appointment.staff_id,
       appointment_date: appointment.appointment_date,
       appointment_time: appointment.appointment_time,
       appointment_type: appointment.appointment_type,
@@ -202,6 +231,14 @@ export async function getAllAppointments(): Promise<Appointment[]> {
             first_name: appointment.doctor.first_name,
             last_name: appointment.doctor.last_name,
             email: appointment.doctor.email,
+          }
+        : undefined,
+      staff: appointment.staff
+        ? {
+            id: appointment.staff.id,
+            first_name: appointment.staff.first_name,
+            last_name: appointment.staff.last_name,
+            email: appointment.staff.email,
           }
         : undefined,
       patient: appointment.patient
@@ -223,6 +260,7 @@ export async function getAllAppointments(): Promise<Appointment[]> {
 export async function createAppointment(appointmentData: {
   patientId: string
   doctorId?: string
+  staffId?: string
   appointmentDate: string
   appointmentTime: string
   appointmentType: string
@@ -236,6 +274,7 @@ export async function createAppointment(appointmentData: {
         {
           patient_id: appointmentData.patientId,
           doctor_id: appointmentData.doctorId,
+          staff_id: appointmentData.staffId,
           appointment_date: appointmentData.appointmentDate,
           appointment_time: appointmentData.appointmentTime,
           appointment_type: appointmentData.appointmentType,
@@ -313,6 +352,12 @@ export async function getDoctorAppointments(doctorId: string): Promise<Appointme
       .from("appointments")
       .select(`
         *,
+        staff:users!appointments_staff_id_fkey(
+          id,
+          first_name,
+          last_name,
+          email
+        ),
         patient:users!appointments_patient_id_fkey(
           id,
           first_name,
@@ -333,6 +378,7 @@ export async function getDoctorAppointments(doctorId: string): Promise<Appointme
       id: appointment.id,
       patient_id: appointment.patient_id,
       doctor_id: appointment.doctor_id,
+      staff_id: appointment.staff_id,
       appointment_date: appointment.appointment_date,
       appointment_time: appointment.appointment_time,
       appointment_type: appointment.appointment_type,
@@ -341,6 +387,14 @@ export async function getDoctorAppointments(doctorId: string): Promise<Appointme
       created_at: appointment.created_at,
       updated_at: appointment.updated_at,
       priority: appointment.priority,
+      staff: appointment.staff
+        ? {
+            id: appointment.staff.id,
+            first_name: appointment.staff.first_name,
+            last_name: appointment.staff.last_name,
+            email: appointment.staff.email,
+          }
+        : undefined,
       patient: appointment.patient
         ? {
             id: appointment.patient.id,
@@ -369,6 +423,12 @@ export async function getAppointmentById(appointmentId: string): Promise<Appoint
           last_name,
           email
         ),
+        staff:users!appointments_staff_id_fkey(
+          id,
+          first_name,
+          last_name,
+          email
+        ),
         patient:users!appointments_patient_id_fkey(
           id,
           first_name,
@@ -389,6 +449,7 @@ export async function getAppointmentById(appointmentId: string): Promise<Appoint
       id: data.id,
       patient_id: data.patient_id,
       doctor_id: data.doctor_id,
+      staff_id: data.staff_id,
       appointment_date: data.appointment_date,
       appointment_time: data.appointment_time,
       appointment_type: data.appointment_type,
@@ -403,6 +464,14 @@ export async function getAppointmentById(appointmentId: string): Promise<Appoint
             first_name: data.doctor.first_name,
             last_name: data.doctor.last_name,
             email: data.doctor.email,
+          }
+        : undefined,
+      staff: data.staff
+        ? {
+            id: data.staff.id,
+            first_name: data.staff.first_name,
+            last_name: data.staff.last_name,
+            email: data.staff.email,
           }
         : undefined,
       patient: data.patient

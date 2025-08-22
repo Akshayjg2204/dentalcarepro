@@ -55,7 +55,7 @@ export default function DashboardPage() {
     case "doctor":
       return <DoctorDashboard user={profile} />
     case "staff":
-      return <StaffDashboard />
+      return <StaffDashboard user={profile} />
     case "admin":
       // This shouldn't happen due to redirect above, but just in case
       return null

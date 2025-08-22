@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,21 +16,20 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { User, Edit } from 'lucide-react'
+import { User, Edit } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
 
 interface UpdateProfileModalProps {
   user: any
   onProfileUpdate: () => void
+  children?: React.ReactNode
 }
 
-export function UpdateProfileModal({ user, onProfileUpdate }: UpdateProfileModalProps) {
+export function UpdateProfileModal({ user, onProfileUpdate, children }: UpdateProfileModalProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
-    first_name: user?.first_name || "",
-    last_name: user?.last_name || "",
     phone: user?.phone || "",
     address: user?.address || "",
     city: user?.city || "",
@@ -43,9 +44,9 @@ export function UpdateProfileModal({ user, onProfileUpdate }: UpdateProfileModal
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }))
   }
 
@@ -54,10 +55,7 @@ export function UpdateProfileModal({ user, onProfileUpdate }: UpdateProfileModal
     setIsLoading(true)
 
     try {
-      const { error } = await supabase
-        .from("users")
-        .update(formData)
-        .eq("id", user.id)
+      const { error } = await supabase.from("users").update(formData).eq("id", user.id)
 
       if (error) throw error
 
@@ -72,99 +70,49 @@ export function UpdateProfileModal({ user, onProfileUpdate }: UpdateProfileModal
     }
   }
 
+  const trigger = children || (
+    <Button variant="outline" className="w-full bg-transparent">
+      <Edit className="w-4 h-4 mr-2" />
+      Update Profile
+    </Button>
+  )
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" className="w-full bg-transparent">
-          <Edit className="w-4 h-4 mr-2" />
-          Update Profile
-        </Button>
-      </DialogTrigger>
+      <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <User className="w-5 h-5" />
             Update Profile
           </DialogTitle>
-          <DialogDescription>
-            Update your personal information and medical details.
-          </DialogDescription>
+          <DialogDescription>Update your personal information and medical details.</DialogDescription>
         </DialogHeader>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Personal Information */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="first_name">First Name</Label>
-              <Input
-                id="first_name"
-                name="first_name"
-                value={formData.first_name}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="last_name">Last Name</Label>
-              <Input
-                id="last_name"
-                name="last_name"
-                value={formData.last_name}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-          </div>
 
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label htmlFor="phone">Phone Number</Label>
-            <Input
-              id="phone"
-              name="phone"
-              type="tel"
-              value={formData.phone}
-              onChange={handleInputChange}
-            />
+            <Input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleInputChange} />
           </div>
 
           {/* Address Information */}
           <div>
             <Label htmlFor="address">Address</Label>
-            <Input
-              id="address"
-              name="address"
-              value={formData.address}
-              onChange={handleInputChange}
-            />
+            <Input id="address" name="address" value={formData.address} onChange={handleInputChange} />
           </div>
 
           <div className="grid grid-cols-3 gap-4">
             <div>
               <Label htmlFor="city">City</Label>
-              <Input
-                id="city"
-                name="city"
-                value={formData.city}
-                onChange={handleInputChange}
-              />
+              <Input id="city" name="city" value={formData.city} onChange={handleInputChange} />
             </div>
             <div>
               <Label htmlFor="state">State</Label>
-              <Input
-                id="state"
-                name="state"
-                value={formData.state}
-                onChange={handleInputChange}
-              />
+              <Input id="state" name="state" value={formData.state} onChange={handleInputChange} />
             </div>
             <div>
               <Label htmlFor="postal_code">Postal Code</Label>
-              <Input
-                id="postal_code"
-                name="postal_code"
-                value={formData.postal_code}
-                onChange={handleInputChange}
-              />
+              <Input id="postal_code" name="postal_code" value={formData.postal_code} onChange={handleInputChange} />
             </div>
           </div>
 

@@ -1,120 +1,259 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Calendar, CreditCard, Receipt } from "lucide-react"
-import Link from "next/link"
-import { supabase } from "@/lib/supabase"
-import { getPatientPayments, type PatientPayment } from "@/lib/patient-payments"
-import { toast } from "sonner"
+import type React from "react"
 
-export default function PaymentsPage() {
-  const [user, setUser] = useState<any>(null)
-  const [payments, setPayments] = useState<PatientPayment[]>([])
+import { useState, useEffect, Suspense } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { getCurrentUser } from "@/lib/auth"
+import { getAppointmentById, updateAppointmentStatus, type Appointment } from "@/lib/appointments"
+import { createPayment, getPaymentByAppointmentId, updatePayment, getAllPayments, type Payment } from "@/lib/payments"
+import { createAppointmentBill } from "@/lib/treatments"
+import { toast } from "sonner"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Badge } from "@/components/ui/badge"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { ArrowLeft, IndianRupee, AlertCircle, Receipt, CreditCard, Calendar, Clock, Stethoscope } from "lucide-react"
+import Link from "next/link"
+
+function PaymentsPageContent() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const [currentUser, setCurrentUser] = useState<any>(null)
+  const [appointment, setAppointment] = useState<Appointment | null>(null)
+  const [existingPayment, setExistingPayment] = useState<Payment | null>(null)
+  const [allPayments, setAllPayments] = useState<Payment[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [formData, setFormData] = useState({
+    billAmount: "",
+    paidAmount: "",
+    paymentStatus: "not_paid" as "fully_paid" | "partial_paid" | "not_paid",
+    notes: "",
+    paymentMethod: "",
+  })
+
+  const appointmentId = searchParams.get("appointmentId")
+  const patientId = searchParams.get("patientId")
+  const action = searchParams.get("action")
 
   useEffect(() => {
     checkAuth()
-  }, [])
+    if (appointmentId) {
+      loadAppointmentData()
+    }
+    loadAllPayments()
+  }, [appointmentId])
+
+  useEffect(() => {
+    // Auto-calculate payment status based on amounts
+    if (formData.billAmount && formData.paidAmount) {
+      const billAmount = Number.parseFloat(formData.billAmount)
+      const paidAmount = Number.parseFloat(formData.paidAmount)
+
+      if (paidAmount === 0) {
+        setFormData((prev) => ({ ...prev, paymentStatus: "not_paid" }))
+      } else if (paidAmount >= billAmount) {
+        setFormData((prev) => ({ ...prev, paymentStatus: "fully_paid" }))
+      } else {
+        setFormData((prev) => ({ ...prev, paymentStatus: "partial_paid" }))
+      }
+    }
+  }, [formData.billAmount, formData.paidAmount])
 
   const checkAuth = async () => {
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-
-      if (!session) {
-        window.location.href = "/login"
+      const user = await getCurrentUser()
+      if (!user || !["admin", "doctor", "staff"].includes(user.profile.role)) {
+        toast.error("Access denied. Admin, doctor, or staff privileges required.")
+        router.push("/login")
         return
       }
-
-      const { data: userData, error: userError } = await supabase
-        .from("users")
-        .select("*")
-        .eq("email", session.user.email)
-        .maybeSingle()
-
-      if (userError || !userData) {
-        console.error("Error fetching user:", userError)
-        window.location.href = "/login"
-        return
-      }
-
-      if (userData.role !== "patient") {
-        window.location.href = "/dashboard"
-        return
-      }
-
-      setUser(userData)
-      await fetchPaymentData(userData.id)
-    } catch (error) {
-      console.error("Auth error:", error)
-      window.location.href = "/login"
+      setCurrentUser(user)
+    } catch (error: any) {
+      console.error("Auth check error:", error)
+      toast.error("Authentication failed")
+      router.push("/login")
     }
   }
 
-  const fetchPaymentData = async (userId: string) => {
+  const loadAppointmentData = async () => {
+    if (!appointmentId) return
+
     try {
-      const paymentsData = await getPatientPayments(userId)
-      setPayments(paymentsData)
-    } catch (error) {
-      console.error("Error fetching payment data:", error)
-      toast.error("Failed to load payment data")
+      const appointmentData = await getAppointmentById(appointmentId)
+      setAppointment(appointmentData)
+
+      // Load existing payment if any
+      const payment = await getPaymentByAppointmentId(appointmentId)
+      if (payment) {
+        setExistingPayment(payment)
+        setFormData({
+          billAmount: payment.bill_amount.toString(),
+          paidAmount: payment.paid_amount.toString(),
+          paymentStatus: payment.payment_status,
+          notes: payment.notes || "",
+          paymentMethod: payment.payment_method || "",
+        })
+      } else {
+        // Reset form for new payment
+        setFormData({
+          billAmount: "",
+          paidAmount: "0",
+          paymentStatus: "not_paid",
+          notes: "",
+          paymentMethod: "",
+        })
+      }
+    } catch (error: any) {
+      console.error("Error loading appointment data:", error)
+      toast.error("Failed to load appointment data")
     } finally {
       setIsLoading(false)
     }
   }
 
-  const formatDate = (dateString: string) => {
-    if (!dateString) return "N/A"
-    return new Date(dateString).toLocaleDateString("en-US", {
+  const loadAllPayments = async () => {
+    try {
+      const payments = await getAllPayments()
+      setAllPayments(payments)
+    } catch (error: any) {
+      console.error("Error loading payments:", error)
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!appointment) return
+
+    setIsSubmitting(true)
+
+    try {
+      // Validate required fields
+      if (!formData.billAmount.trim()) {
+        throw new Error("Bill amount is required")
+      }
+
+      const billAmount = Number.parseFloat(formData.billAmount)
+      const paidAmount = Number.parseFloat(formData.paidAmount) || 0
+
+      if (billAmount <= 0) {
+        throw new Error("Bill amount must be greater than 0")
+      }
+
+      if (paidAmount < 0) {
+        throw new Error("Paid amount cannot be negative")
+      }
+
+      if (paidAmount > billAmount) {
+        throw new Error("Paid amount cannot exceed bill amount")
+      }
+
+      // Create or update payment
+      if (existingPayment) {
+        await updatePayment(existingPayment.id, {
+          paid_amount: paidAmount,
+          payment_method: formData.paymentMethod.trim() || undefined,
+          notes: formData.notes.trim() || undefined,
+        })
+      } else {
+        await createPayment({
+          appointmentId: appointment.id,
+          patientId: appointment.patient_id,
+          billAmount,
+          paidAmount,
+          paymentStatus: formData.paymentStatus,
+          notes: formData.notes.trim() || undefined,
+          paymentMethod: formData.paymentMethod.trim() || undefined,
+        })
+      }
+
+      // Create billing record for the appointment
+      await createAppointmentBill({
+        appointment_id: appointment.id,
+        patient_id: appointment.patient_id,
+        treatments: [
+          {
+            treatment_id: "default",
+            treatment_name: appointment.appointment_type,
+            price: billAmount,
+            quantity: 1,
+          },
+        ],
+        total_amount: billAmount,
+        payment_method: formData.paymentMethod.trim() || undefined,
+        notes: formData.notes.trim() || undefined,
+        created_by: currentUser?.profile?.id, // Pass current user ID to avoid foreign key constraint error
+      })
+
+      // Update appointment status to completed
+      await updateAppointmentStatus(appointment.id, "completed")
+
+      toast.success("Payment recorded and appointment completed successfully!")
+
+      // Navigate back to admin dashboard
+      router.push("/admin")
+    } catch (error: any) {
+      console.error("Payment submission error:", error)
+      toast.error(error.message || "Failed to process payment")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const formatDate = (date: string) => {
+    return new Date(date).toLocaleDateString("en-US", {
+      weekday: "long",
       year: "numeric",
-      month: "short",
+      month: "long",
       day: "numeric",
     })
   }
 
+  const formatTime = (time: string) => {
+    return new Date(`2000-01-01T${time}`).toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    })
+  }
+
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-    }).format(amount || 0)
+    return `Rs ${amount.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
   }
 
   const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "paid":
+    switch (status) {
       case "fully_paid":
-        return "bg-green-100 text-green-800"
-      case "partial":
+        return "text-green-600"
       case "partial_paid":
-        return "bg-yellow-100 text-yellow-800"
-      case "pending":
+        return "text-yellow-600"
       case "not_paid":
-        return "bg-red-100 text-red-800"
+        return "text-red-600"
       default:
-        return "bg-gray-100 text-gray-800"
+        return "text-gray-600"
     }
   }
 
   const getStatusText = (status: string) => {
-    switch (status.toLowerCase()) {
+    switch (status) {
       case "fully_paid":
-        return "PAID"
+        return "Fully Paid"
       case "partial_paid":
-        return "PARTIAL"
+        return "Partial Paid"
       case "not_paid":
-        return "NOT_PAID"
+        return "Not Paid"
       default:
-        return status.toUpperCase()
+        return "Unknown"
     }
-  }
-
-  // Function to clean appointment type by removing duration
-  const cleanAppointmentType = (appointmentType: string) => {
-    if (!appointmentType) return "Treatment"
-    return appointmentType.replace(/\s*$$\d+\s*min$$/gi, "").trim()
   }
 
   if (isLoading) {
@@ -122,164 +261,338 @@ export default function PaymentsPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading payment history...</p>
+          <p className="text-gray-600">Loading payment information...</p>
         </div>
       </div>
     )
   }
 
-  const totalPaid = payments.reduce((sum, payment) => sum + payment.amount_paid, 0)
-  const totalOutstanding = payments.reduce((sum, payment) => sum + payment.outstanding_balance, 0)
-  const totalBilled = payments.reduce((sum, payment) => sum + payment.total_amount, 0)
+  if (!appointment && appointmentId) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold mb-2">Appointment Not Found</h2>
+          <p className="text-gray-600 mb-4">The requested appointment could not be found.</p>
+          <Link href="/admin">
+            <Button>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Dashboard
+            </Button>
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  const billAmount = Number.parseFloat(formData.billAmount) || 0
+  const paidAmount = Number.parseFloat(formData.paidAmount) || 0
+  const outstandingAmount = billAmount - paidAmount
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between py-4">
-            <div className="flex items-center space-x-4">
-              <Link href="/dashboard" className="flex items-center text-gray-600 hover:text-gray-900">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Dashboard
-              </Link>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Payment History</h1>
-                <p className="text-gray-600">View your bills and payment records</p>
-              </div>
+      <div className="bg-white border-b px-4 sm:px-6 py-3 sm:py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3 sm:space-x-4">
+            <Link href="/admin" className="flex items-center text-gray-600 hover:text-gray-800">
+              <ArrowLeft className="w-5 h-5" />
+              <span className="sr-only">Back to Dashboard</span>
+            </Link>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-800">
+                {action === "complete" ? "Complete Appointment & Record Payment" : "Payment Management"}
+              </h1>
+              <p className="text-sm sm:text-base text-gray-600">
+                {appointment
+                  ? `${appointment.appointment_type} - ${appointment.patient?.first_name} ${appointment.patient?.last_name}`
+                  : "Payment Processing"}
+              </p>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Payment Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total Billed</p>
-                  <p className="text-2xl font-bold text-gray-900">{formatCurrency(totalBilled)}</p>
+      {/* Main Content */}
+      <div className="p-4 sm:p-6 max-w-4xl mx-auto">
+        {appointment && (
+          <>
+            {/* Appointment Details Card */}
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Calendar className="w-5 h-5 mr-2" />
+                  Appointment Details
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-600">Patient</p>
+                    <p className="font-medium">
+                      {appointment.patient?.first_name} {appointment.patient?.last_name}
+                    </p>
+                    <p className="text-sm text-gray-500">{appointment.patient?.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Appointment Type</p>
+                    <p className="font-medium">{appointment.appointment_type}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Date & Time</p>
+                    <p className="font-medium">{formatDate(appointment.appointment_date)}</p>
+                    <p className="text-sm text-gray-500 flex items-center">
+                      <Clock className="w-3 h-3 mr-1" />
+                      {formatTime(appointment.appointment_time)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Assigned Staff</p>
+                    {appointment.doctor && (
+                      <p className="font-medium flex items-center text-green-600">
+                        <Stethoscope className="w-3 h-3 mr-1" />
+                        Dr. {appointment.doctor.first_name} {appointment.doctor.last_name}
+                      </p>
+                    )}
+                    {appointment.staff && (
+                      <p className="text-sm text-blue-600">
+                        Staff: {appointment.staff.first_name} {appointment.staff.last_name}
+                      </p>
+                    )}
+                    {!appointment.doctor && !appointment.staff && <p className="text-sm text-gray-500">Not assigned</p>}
+                  </div>
                 </div>
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <Receipt className="w-6 h-6 text-blue-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                {appointment.notes && (
+                  <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                    <p className="text-sm text-gray-600">Notes:</p>
+                    <p className="text-sm">{appointment.notes}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total Paid</p>
-                  <p className="text-2xl font-bold text-green-600">{formatCurrency(totalPaid)}</p>
-                </div>
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                  <CreditCard className="w-6 h-6 text-green-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Outstanding</p>
-                  <p className="text-2xl font-bold text-red-600">{formatCurrency(totalOutstanding)}</p>
-                </div>
-                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                  <Receipt className="w-6 h-6 text-red-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Payment History */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Receipt className="h-5 w-5" />
-              Payment Records
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {payments.length === 0 ? (
-              <div className="text-center py-8">
-                <Receipt className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No payment records</h3>
-                <p className="text-gray-600">Your payment history will appear here</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {payments.map((payment) => (
-                  <div key={payment.id} className="border rounded-lg p-4 bg-white">
-                    {/* Mobile-optimized layout */}
-                    <div className="space-y-3">
-                      {/* Header with status and treatment */}
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <Badge className={`${getStatusColor(payment.payment_status)} text-xs mb-2`}>
-                            {getStatusText(payment.payment_status)}
-                          </Badge>
-                          <h3 className="font-medium text-base break-words">
-                            {cleanAppointmentType(payment.treatment_type)}
-                          </h3>
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                          <div className="text-sm text-gray-600">Total:</div>
-                          <div className="font-semibold">{formatCurrency(payment.total_amount)}</div>
-                        </div>
-                      </div>
-
-                      {/* Appointment date */}
-                      <div className="flex items-center text-sm text-gray-600">
-                        <Calendar className="h-4 w-4 mr-2 flex-shrink-0" />
-                        <span>Appointment: {formatDate(payment.appointment_date)}</span>
-                      </div>
-
-                      {/* Payment details in a grid for mobile */}
-                      <div className="grid grid-cols-2 gap-4 pt-2 border-t">
-                        <div>
-                          <div className="text-xs text-gray-600">Amount Paid</div>
-                          <div className="font-medium text-green-600">{formatCurrency(payment.amount_paid)}</div>
-                        </div>
-                        {payment.outstanding_balance > 0 && (
-                          <div>
-                            <div className="text-xs text-gray-600">Outstanding</div>
-                            <div className="font-medium text-red-600">
-                              {formatCurrency(payment.outstanding_balance)}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Payment date if available */}
-                      {payment.payment_date && (
-                        <div className="flex items-center text-sm text-gray-600">
-                          <CreditCard className="h-4 w-4 mr-2 flex-shrink-0" />
-                          <span>Payment Date: {formatDate(payment.payment_date)}</span>
-                        </div>
-                      )}
-
-                      {/* Payment method if available */}
-                      {payment.payment_method && (
-                        <div className="flex items-center text-sm text-gray-600">
-                          <CreditCard className="h-4 w-4 mr-2 flex-shrink-0" />
-                          <span>Method: {payment.payment_method}</span>
-                        </div>
-                      )}
+            {/* Payment Form Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <IndianRupee className="w-5 h-5 mr-2" />
+                  {existingPayment ? "Update Payment Information" : "Record Payment Information"}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="billAmount">
+                        Bill Amount (Rs) <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="billAmount"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={formData.billAmount}
+                        onChange={(e) => handleInputChange("billAmount", e.target.value)}
+                        required
+                        disabled={isSubmitting}
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="paidAmount">Paid Amount (Rs)</Label>
+                      <Input
+                        id="paidAmount"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max={formData.billAmount}
+                        value={formData.paidAmount}
+                        onChange={(e) => handleInputChange("paidAmount", e.target.value)}
+                        disabled={isSubmitting}
+                        placeholder="0.00"
+                      />
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+
+                  {/* Payment Summary */}
+                  {billAmount > 0 && (
+                    <div className="p-4 bg-blue-50 rounded-lg">
+                      <h4 className="font-medium mb-3">Payment Summary</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <p className="text-gray-600">Bill Amount:</p>
+                          <p className="font-medium text-lg">{formatCurrency(billAmount)}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-600">Paid Amount:</p>
+                          <p className="font-medium text-lg">{formatCurrency(paidAmount)}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-600">Outstanding:</p>
+                          <p
+                            className={`font-medium text-lg ${outstandingAmount > 0 ? "text-red-600" : "text-green-600"}`}
+                          >
+                            {formatCurrency(outstandingAmount)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-3">
+                        <p className="text-gray-600">Payment Status:</p>
+                        <Badge className={`${getStatusColor(formData.paymentStatus)} bg-transparent border`}>
+                          {getStatusText(formData.paymentStatus)}
+                        </Badge>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="paymentStatus">Payment Status</Label>
+                      <Select
+                        value={formData.paymentStatus}
+                        onValueChange={(value) => handleInputChange("paymentStatus", value)}
+                        disabled={isSubmitting}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="not_paid">Not Paid</SelectItem>
+                          <SelectItem value="partial_paid">Partial Paid</SelectItem>
+                          <SelectItem value="fully_paid">Fully Paid</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="paymentMethod">Payment Method</Label>
+                      <Input
+                        id="paymentMethod"
+                        value={formData.paymentMethod}
+                        onChange={(e) => handleInputChange("paymentMethod", e.target.value)}
+                        disabled={isSubmitting}
+                        placeholder="e.g., Cash, Card, UPI, Bank Transfer"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="notes">Notes (optional)</Label>
+                    <Textarea
+                      id="notes"
+                      value={formData.notes}
+                      onChange={(e) => handleInputChange("notes", e.target.value)}
+                      rows={3}
+                      disabled={isSubmitting}
+                      placeholder="Additional payment notes or comments..."
+                    />
+                  </div>
+
+                  {/* Warning for outstanding amount */}
+                  {outstandingAmount > 0 && (
+                    <Alert className="border-yellow-200 bg-yellow-50">
+                      <AlertCircle className="h-4 w-4 text-yellow-600" />
+                      <AlertDescription className="text-yellow-800">
+                        <strong>Outstanding Amount:</strong> {formatCurrency(outstandingAmount)} will remain unpaid.
+                        This will be tracked in the patient's billing records.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {/* Submit Button */}
+                  <div className="flex justify-end pt-4 border-t">
+                    <div className="flex gap-3">
+                      <Link href="/admin">
+                        <Button type="button" variant="outline" disabled={isSubmitting}>
+                          Cancel
+                        </Button>
+                      </Link>
+                      <Button type="submit" disabled={isSubmitting} className="bg-green-600 hover:bg-green-700">
+                        {isSubmitting ? (
+                          <div className="flex items-center">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            {existingPayment ? "Updating..." : "Processing..."}
+                          </div>
+                        ) : (
+                          <div className="flex items-center">
+                            <Receipt className="w-4 h-4 mr-2" />
+                            {existingPayment ? "Update Payment" : "Complete & Record Payment"}
+                          </div>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </>
+        )}
+
+        {/* All Payments Overview */}
+        {!appointmentId && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <CreditCard className="w-5 h-5 mr-2" />
+                All Payments Overview
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {allPayments.length > 0 ? (
+                <div className="space-y-4">
+                  {allPayments.map((payment) => (
+                    <div key={payment.id} className="p-4 border rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">
+                            {payment.patient?.first_name} {payment.patient?.last_name}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {payment.appointment
+                              ? `${payment.appointment.appointment_type} - ${formatDate(payment.appointment.appointment_date)}`
+                              : payment.bill_description || "Custom Bill"}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium">{formatCurrency(payment.bill_amount)}</p>
+                          <Badge
+                            className={`text-xs ${payment.payment_status === "fully_paid" ? "bg-green-100 text-green-800" : payment.payment_status === "partial_paid" ? "bg-yellow-100 text-yellow-800" : "bg-red-100 text-red-800"}`}
+                          >
+                            {getStatusText(payment.payment_status)}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <CreditCard className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No payments found</h3>
+                  <p className="text-gray-600">No payment records available at the moment.</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
+  )
+}
+
+export default function PaymentsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading...</p>
+          </div>
+        </div>
+      }
+    >
+      <PaymentsPageContent />
+    </Suspense>
   )
 }

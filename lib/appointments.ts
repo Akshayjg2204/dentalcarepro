@@ -13,6 +13,7 @@ export interface Appointment {
   created_at: string
   updated_at?: string
   priority?: "normal" | "high" | "urgent"
+  preferred_doctor?: string
   doctor?: {
     id: string
     first_name: string
@@ -153,6 +154,7 @@ export async function getPatientAppointments(patientId: string): Promise<Appoint
       created_at: appointment.created_at,
       updated_at: appointment.updated_at,
       priority: appointment.priority,
+      preferred_doctor: appointment.preferred_doctor,
       doctor: appointment.doctor
         ? {
             id: appointment.doctor.id,
@@ -225,6 +227,7 @@ export async function getAllAppointments(): Promise<Appointment[]> {
       created_at: appointment.created_at,
       updated_at: appointment.updated_at,
       priority: appointment.priority,
+      preferred_doctor: appointment.preferred_doctor,
       doctor: appointment.doctor
         ? {
             id: appointment.doctor.id,
@@ -266,6 +269,7 @@ export async function createAppointment(appointmentData: {
   appointmentType: string
   notes?: string
   priority?: "normal" | "high" | "urgent"
+  preferredDoctor?: string
 }) {
   try {
     const { data, error } = await supabase
@@ -281,6 +285,7 @@ export async function createAppointment(appointmentData: {
           notes: appointmentData.notes,
           status: "pending",
           priority: appointmentData.priority || "normal",
+          preferred_doctor: appointmentData.preferredDoctor,
         },
       ])
       .select()
@@ -387,6 +392,7 @@ export async function getDoctorAppointments(doctorId: string): Promise<Appointme
       created_at: appointment.created_at,
       updated_at: appointment.updated_at,
       priority: appointment.priority,
+      preferred_doctor: appointment.preferred_doctor,
       staff: appointment.staff
         ? {
             id: appointment.staff.id,
@@ -458,6 +464,7 @@ export async function getAppointmentById(appointmentId: string): Promise<Appoint
       created_at: data.created_at,
       updated_at: data.updated_at,
       priority: data.priority,
+      preferred_doctor: data.preferred_doctor,
       doctor: data.doctor
         ? {
             id: data.doctor.id,

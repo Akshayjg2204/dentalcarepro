@@ -9,9 +9,10 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { DollarSign, CreditCard, AlertCircle } from "lucide-react"
+import { IndianRupee, AlertCircle, Receipt, User } from "lucide-react"
 import { createPayment, getPaymentByAppointmentId, updatePayment, type Payment } from "@/lib/payments"
 import { updateAppointmentStatus, type Appointment } from "@/lib/appointments"
+import { createAppointmentBill } from "@/lib/treatments"
 import { toast } from "sonner"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
@@ -19,7 +20,7 @@ interface CompleteAppointmentModalProps {
   isOpen: boolean
   onClose: () => void
   appointment: Appointment | null
-  onAppointmentCompleted: () => void
+  onAppointmentCompleted: (patientId?: string, shouldOpenProfile?: boolean) => void
 }
 
 export function CompleteAppointmentModal({
@@ -35,6 +36,7 @@ export function CompleteAppointmentModal({
     paidAmount: "",
     paymentStatus: "not_paid" as "fully_paid" | "partial_paid" | "not_paid",
     notes: "",
+    paymentMethod: "",
   })
 
   useEffect(() => {
@@ -71,6 +73,7 @@ export function CompleteAppointmentModal({
           paidAmount: payment.paid_amount.toString(),
           paymentStatus: payment.payment_status,
           notes: payment.notes || "",
+          paymentMethod: payment.payment_method || "",
         })
       } else {
         // Reset form for new payment
@@ -79,6 +82,7 @@ export function CompleteAppointmentModal({
           paidAmount: "0",
           paymentStatus: "not_paid",
           notes: "",
+          paymentMethod: "",
         })
       }
     } catch (error) {
@@ -92,6 +96,7 @@ export function CompleteAppointmentModal({
       paidAmount: "0",
       paymentStatus: "not_paid",
       notes: "",
+      paymentMethod: "",
     })
     setExistingPayment(null)
   }
@@ -126,9 +131,8 @@ export function CompleteAppointmentModal({
       // Create or update payment
       if (existingPayment) {
         await updatePayment(existingPayment.id, {
-          billAmount,
-          paidAmount,
-          paymentStatus: formData.paymentStatus,
+          paid_amount: paidAmount,
+          payment_method: formData.paymentMethod.trim() || undefined,
           notes: formData.notes.trim() || undefined,
         })
       } else {
@@ -139,16 +143,33 @@ export function CompleteAppointmentModal({
           paidAmount,
           paymentStatus: formData.paymentStatus,
           notes: formData.notes.trim() || undefined,
+          paymentMethod: formData.paymentMethod.trim() || undefined,
         })
       }
+
+      // Create billing record for the appointment
+      await createAppointmentBill({
+        appointment_id: appointment.id,
+        patient_id: appointment.patient_id,
+        treatments: [], // Empty treatments array for now
+        total_amount: billAmount,
+        payment_method: formData.paymentMethod.trim() || undefined,
+        notes: formData.notes.trim() || undefined,
+      })
 
       // Update appointment status to completed
       await updateAppointmentStatus(appointment.id, "completed")
 
-      toast.success("Appointment completed and payment recorded successfully!")
-      onAppointmentCompleted()
+      toast.success("Appointment completed successfully!")
+
+      // Close modal and trigger callback with flag to open profile
       onClose()
       resetForm()
+
+      // Open patient profile with billing tab after a short delay
+      setTimeout(() => {
+        onAppointmentCompleted(appointment.patient_id, true)
+      }, 500)
     } catch (error: any) {
       console.error("Complete appointment error:", error)
       toast.error(error.message || "Failed to complete appointment")
@@ -183,6 +204,10 @@ export function CompleteAppointmentModal({
       minute: "2-digit",
       hour12: true,
     })
+  }
+
+  const formatCurrency = (amount: number) => {
+    return `Rs ${amount.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
   }
 
   const getStatusColor = (status: string) => {
@@ -255,14 +280,14 @@ export function CompleteAppointmentModal({
           {/* Payment Information */}
           <div>
             <h3 className="text-lg font-medium mb-4 flex items-center">
-              <DollarSign className="w-5 h-5 mr-2" />
+              <IndianRupee className="w-5 h-5 mr-2" />
               Payment Information
             </h3>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="billAmount">
-                  Bill Amount <span className="text-red-500">*</span>
+                  Bill Amount (Rs) <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="billAmount"
@@ -277,7 +302,7 @@ export function CompleteAppointmentModal({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="paidAmount">Paid Amount</Label>
+                <Label htmlFor="paidAmount">Paid Amount (Rs)</Label>
                 <Input
                   id="paidAmount"
                   type="number"
@@ -286,12 +311,9 @@ export function CompleteAppointmentModal({
                   max={formData.billAmount}
                   value={formData.paidAmount}
                   onChange={(e) => handleInputChange("paidAmount", e.target.value)}
-                  disabled={isLoading || formData.paymentStatus !== "partial_paid"}
+                  disabled={isLoading}
                   placeholder="0.00"
                 />
-                {formData.paymentStatus !== "partial_paid" && (
-                  <p className="text-xs text-gray-500">Paid amount is only editable for partial payments</p>
-                )}
               </div>
             </div>
 
@@ -302,16 +324,16 @@ export function CompleteAppointmentModal({
                 <div className="grid grid-cols-3 gap-4 text-sm">
                   <div>
                     <p className="text-gray-600">Bill Amount:</p>
-                    <p className="font-medium">₹{billAmount.toFixed(2)}</p>
+                    <p className="font-medium">{formatCurrency(billAmount)}</p>
                   </div>
                   <div>
                     <p className="text-gray-600">Paid Amount:</p>
-                    <p className="font-medium">₹{paidAmount.toFixed(2)}</p>
+                    <p className="font-medium">{formatCurrency(paidAmount)}</p>
                   </div>
                   <div>
                     <p className="text-gray-600">Outstanding:</p>
                     <p className={`font-medium ${outstandingAmount > 0 ? "text-red-600" : "text-green-600"}`}>
-                      ₹{outstandingAmount.toFixed(2)}
+                      {formatCurrency(outstandingAmount)}
                     </p>
                   </div>
                 </div>
@@ -343,6 +365,17 @@ export function CompleteAppointmentModal({
             </div>
 
             <div className="space-y-2 mt-4">
+              <Label htmlFor="paymentMethod">Payment Method</Label>
+              <Input
+                id="paymentMethod"
+                value={formData.paymentMethod}
+                onChange={(e) => handleInputChange("paymentMethod", e.target.value)}
+                disabled={isLoading}
+                placeholder="e.g., Cash, Card, UPI, Bank Transfer"
+              />
+            </div>
+
+            <div className="space-y-2 mt-4">
               <Label htmlFor="notes">Notes (optional)</Label>
               <Textarea
                 id="notes"
@@ -360,8 +393,8 @@ export function CompleteAppointmentModal({
             <Alert className="border-yellow-200 bg-yellow-50">
               <AlertCircle className="h-4 w-4 text-yellow-600" />
               <AlertDescription className="text-yellow-800">
-                <strong>Outstanding Amount:</strong> ₹{outstandingAmount.toFixed(2)} will remain unpaid. You can update
-                this payment later if needed.
+                <strong>Outstanding Amount:</strong> {formatCurrency(outstandingAmount)} will remain unpaid. This will
+                be tracked in the patient's billing section.
               </AlertDescription>
             </Alert>
           )}
@@ -380,14 +413,28 @@ export function CompleteAppointmentModal({
                   </div>
                 ) : (
                   <div className="flex items-center">
-                    <CreditCard className="w-4 h-4 mr-2" />
-                    {existingPayment ? "Update Payment" : "Complete Appointment"}
+                    <Receipt className="w-4 h-4 mr-2" />
+                    {existingPayment ? "Update & View Profile" : "Complete & View Profile"}
                   </div>
                 )}
               </Button>
             </div>
           </div>
         </form>
+
+        {/* Info about what happens next */}
+        <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="flex items-start space-x-2">
+            <User className="w-4 h-4 text-blue-600 mt-0.5" />
+            <div className="text-sm text-blue-800">
+              <p className="font-medium">What happens next:</p>
+              <p>
+                After completing this appointment, you'll be redirected to the patient's profile billing section where
+                you can view and manage all payment details.
+              </p>
+            </div>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   )

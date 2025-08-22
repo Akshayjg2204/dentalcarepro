@@ -1,15 +1,13 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Inter } from "next/font/google"
-import "./globals.css"
-import { Toaster } from "sonner"
-
-const inter = Inter({ subsets: ["latin"] })
+import ClientLayout from "./client"
 
 export const metadata: Metadata = {
-  title: "Dental Clinic Management System",
-  description: "Professional dental clinic management application",
-    generator: 'v0.dev'
+  title: "DentalCare - Modern Dental Clinic Management",
+  description: "Complete dental clinic management system with appointment scheduling, patient records, and billing",
+  viewport: "width=device-width, initial-scale=1",
+  robots: "index, follow",
+    generator: 'v0.app'
 }
 
 export default function RootLayout({
@@ -17,12 +15,8 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  return (
-    <html lang="en">
-      <body className={inter.className}>
-        {children}
-        <Toaster position="top-right" richColors />
-      </body>
-    </html>
-  )
+  return <ClientLayout>{children}</ClientLayout>
 }
+
+
+import './globals.css'

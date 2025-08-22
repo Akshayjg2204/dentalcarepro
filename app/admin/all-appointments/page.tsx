@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { getCurrentUser } from "@/lib/auth"
 import { getAllAppointments, updateAppointmentStatus, deleteAppointment, type Appointment } from "@/lib/appointments"
 import { getAllPayments, type Payment } from "@/lib/payments"
@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { CompleteAppointmentModal } from "@/components/complete-appointment-modal"
+import { PatientProfileModal } from "@/components/patient-profile-modal"
 
 export default function AllAppointments() {
   const [currentUser, setCurrentUser] = useState<any>(null)
@@ -27,13 +28,36 @@ export default function AllAppointments() {
   const [processingAppointments, setProcessingAppointments] = useState<Set<string>>(new Set())
   const [deletingAppointments, setDeletingAppointments] = useState<Set<string>>(new Set())
   const [completeModalAppointment, setCompleteModalAppointment] = useState<Appointment | null>(null)
+  const [patientProfileModal, setPatientProfileModal] = useState<{
+    isOpen: boolean
+    patientId: string
+    initialTab?: string
+  }>({
+    isOpen: false,
+    patientId: "",
+    initialTab: "",
+  })
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const highlightId = searchParams.get("highlight")
 
   useEffect(() => {
     checkAuth()
     fetchAppointments()
     fetchPayments()
   }, [])
+
+  useEffect(() => {
+    if (highlightId && appointments.length > 0) {
+      // Small delay to ensure DOM is rendered
+      setTimeout(() => {
+        const element = document.getElementById(`appointment-${highlightId}`)
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth", block: "center" })
+        }
+      }, 100)
+    }
+  }, [highlightId, appointments])
 
   useEffect(() => {
     filterAppointments()
@@ -153,10 +177,18 @@ export default function AllAppointments() {
     }
   }
 
-  const handleCompleteAppointment = () => {
+  const handleCompleteAppointment = (patientId?: string, shouldOpenProfile?: boolean) => {
     fetchAppointments()
     fetchPayments()
     setCompleteModalAppointment(null)
+
+    if (shouldOpenProfile && patientId) {
+      setPatientProfileModal({
+        isOpen: true,
+        patientId: patientId,
+        initialTab: "billing",
+      })
+    }
   }
 
   const getStatusColor = (status: string) => {
@@ -324,9 +356,16 @@ export default function AllAppointments() {
                     const payment = getAppointmentPayment(appointment.id)
                     const isProcessing = processingAppointments.has(appointment.id)
                     const isDeleting = deletingAppointments.has(appointment.id)
+                    const isHighlighted = highlightId === appointment.id
 
                     return (
-                      <div key={appointment.id} className="p-3 sm:p-4 border rounded-lg hover:bg-gray-50">
+                      <div
+                        key={appointment.id}
+                        id={`appointment-${appointment.id}`}
+                        className={`p-3 sm:p-4 border rounded-lg hover:bg-gray-50 transition-all duration-300 ${
+                          isHighlighted ? "ring-2 ring-blue-500 bg-blue-50 border-blue-300" : ""
+                        }`}
+                      >
                         {/* Mobile Layout */}
                         <div className="block sm:hidden space-y-3">
                           {/* Header */}
@@ -599,6 +638,15 @@ export default function AllAppointments() {
         onClose={() => setCompleteModalAppointment(null)}
         appointment={completeModalAppointment}
         onAppointmentCompleted={handleCompleteAppointment}
+      />
+
+      <PatientProfileModal
+        isOpen={patientProfileModal.isOpen}
+        onClose={() => setPatientProfileModal({ isOpen: false, patientId: "", initialTab: "" })}
+        patientId={patientProfileModal.patientId}
+        currentUserId={currentUser?.id || ""}
+        currentUserRole={currentUser?.profile?.role || ""}
+        initialTab={patientProfileModal.initialTab}
       />
     </div>
   )

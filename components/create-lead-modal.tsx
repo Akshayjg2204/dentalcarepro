@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -8,16 +10,9 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
-import { UserPlus, Phone, User, Stethoscope, Users } from 'lucide-react'
+import { UserPlus, Phone, Stethoscope, Users } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { createLead } from "@/lib/leads"
-
-interface User {
-  id: string
-  first_name: string
-  last_name: string
-  role: string
-}
 
 interface CreateLeadModalProps {
   isOpen: boolean
@@ -38,8 +33,8 @@ export function CreateLeadModal({ isOpen, onClose, onLeadCreated }: CreateLeadMo
     notes: "",
   })
   const [isLoading, setIsLoading] = useState(false)
-  const [doctors, setDoctors] = useState<User[]>([])
-  const [staff, setStaff] = useState<User[]>([])
+  const [doctors, setDoctors] = useState<any[]>([])
+  const [staff, setStaff] = useState<any[]>([])
 
   useEffect(() => {
     if (isOpen) {
@@ -76,8 +71,13 @@ export function CreateLeadModal({ isOpen, onClose, onLeadCreated }: CreateLeadMo
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    if (!formData.first_name.trim() || !formData.last_name.trim() || !formData.phone.trim() || !formData.consultation_reason.trim()) {
+
+    if (
+      !formData.first_name.trim() ||
+      !formData.last_name.trim() ||
+      !formData.phone.trim() ||
+      !formData.consultation_reason.trim()
+    ) {
       toast.error("Please fill in all required fields")
       return
     }
@@ -156,7 +156,7 @@ export function CreateLeadModal({ isOpen, onClose, onLeadCreated }: CreateLeadMo
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="first_name" className="flex items-center">
-                <User className="w-4 h-4 mr-1 text-blue-600" />
+                <Stethoscope className="w-4 h-4 mr-1 text-blue-600" />
                 First Name *
               </Label>
               <Input
@@ -271,7 +271,7 @@ export function CreateLeadModal({ isOpen, onClose, onLeadCreated }: CreateLeadMo
                 type="date"
                 value={formData.consultation_date}
                 onChange={(e) => setFormData({ ...formData, consultation_date: e.target.value })}
-                min={new Date().toISOString().split('T')[0]}
+                min={new Date().toISOString().split("T")[0]}
               />
             </div>
             <div className="space-y-2">

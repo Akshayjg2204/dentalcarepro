@@ -25,6 +25,7 @@ export default function AppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [appointmentTypes, setAppointmentTypes] = useState<any[]>([])
   const [selectedType, setSelectedType] = useState("")
+  const [doctorPreference, setDoctorPreference] = useState("")
   const [selectedDate, setSelectedDate] = useState<Date>()
   const [selectedTime, setSelectedTime] = useState("")
   const [availableSlots, setAvailableSlots] = useState<string[]>([])
@@ -122,7 +123,7 @@ export default function AppointmentsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedType || !selectedDate || !selectedTime) {
+    if (!selectedType || !doctorPreference || !selectedDate || !selectedTime) {
       toast.error("Please fill in all required fields")
       return
     }
@@ -134,17 +135,17 @@ export default function AppointmentsPage() {
         appointmentDate: format(selectedDate, "yyyy-MM-dd"),
         appointmentTime: selectedTime,
         appointmentType: selectedType,
+        preferredDoctor: doctorPreference === "senior" ? "Senior Doctor" : "Junior Doctor",
         notes: notes.trim() || undefined,
       })
 
       if (result.success) {
         toast.success("Appointment booked successfully!")
-        // Reset form
         setSelectedType("")
+        setDoctorPreference("")
         setSelectedDate(undefined)
         setSelectedTime("")
         setNotes("")
-        // Refresh appointments
         await fetchAppointments(user.id)
       } else {
         toast.error(result.error || "Failed to book appointment")
@@ -254,6 +255,21 @@ export default function AppointmentsPage() {
                   </div>
 
                   <div className="space-y-2">
+                    <Label htmlFor="doctor-preference">
+                      Doctor Preference <span className="text-red-500">*</span>
+                    </Label>
+                    <Select value={doctorPreference} onValueChange={setDoctorPreference}>
+                      <SelectTrigger className="h-11">
+                        <SelectValue placeholder="Select doctor preference" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="senior">Senior Doctor</SelectItem>
+                        <SelectItem value="junior">Junior Doctor</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
                     <Label>
                       Date <span className="text-red-500">*</span>
                     </Label>
@@ -325,7 +341,7 @@ export default function AppointmentsPage() {
                   <Button
                     type="submit"
                     className="w-full bg-blue-600 hover:bg-blue-700 h-11"
-                    disabled={isSubmitting || !selectedType || !selectedDate || !selectedTime}
+                    disabled={isSubmitting || !selectedType || !doctorPreference || !selectedDate || !selectedTime}
                   >
                     {isSubmitting ? "Booking..." : "Book Appointment"}
                   </Button>

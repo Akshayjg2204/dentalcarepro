@@ -9,8 +9,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Eye, EyeOff, ArrowLeft } from 'lucide-react'
-import { signIn, getCurrentUser } from "@/lib/auth"
+import { Eye, EyeOff, ArrowLeft } from "lucide-react"
+import { useAuth } from "@/lib/auth-context"
 import { toast } from "sonner"
 
 export default function LoginPage() {
@@ -18,32 +18,22 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true)
   const router = useRouter()
+  const { user, profile, loading, signIn } = useAuth()
 
   useEffect(() => {
-    checkExistingAuth()
-  }, [])
+    if (loading) return
 
-  const checkExistingAuth = async () => {
-    try {
-      const user = await getCurrentUser()
-      if (user) {
-        // User is already logged in, redirect to appropriate dashboard
-        if (user.profile.role === "admin") {
-          router.push("/admin")
-        } else {
-          router.push("/dashboard")
-        }
-        return
+    if (user && profile) {
+      // User is already logged in, redirect to appropriate dashboard
+      console.log("Existing user found with role:", profile.role)
+      if (profile.role === "admin") {
+        router.push("/admin")
+      } else {
+        router.push("/dashboard")
       }
-    } catch (error) {
-      // User is not logged in, continue with login page
-      console.log("No existing session found")
-    } finally {
-      setIsCheckingAuth(false)
     }
-  }
+  }, [user, profile, loading, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -54,16 +44,14 @@ export default function LoginPage() {
         throw new Error("Please enter both email and password")
       }
 
-      const { profile } = await signIn(email.trim(), password)
+      console.log("Attempting login for:", email.trim())
 
+      await signIn(email.trim(), password)
+
+      console.log("Login successful via auth context")
       toast.success("Login successful!")
 
-      // Redirect based on role
-      if (profile.role === "admin") {
-        router.push("/admin")
-      } else {
-        router.push("/dashboard")
-      }
+      // The useEffect above will handle the redirect once the auth context updates
     } catch (error: any) {
       console.error("Login error:", error)
       let errorMessage = "Login failed"
@@ -72,6 +60,8 @@ export default function LoginPage() {
         errorMessage = "Invalid email or password"
       } else if (error.message?.includes("Email not confirmed")) {
         errorMessage = "Please confirm your email address"
+      } else if (error.message?.includes("User profile not found")) {
+        errorMessage = "User profile not found. Please contact administrator."
       } else if (error.message) {
         errorMessage = error.message
       }
@@ -82,7 +72,7 @@ export default function LoginPage() {
     }
   }
 
-  if (isCheckingAuth) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center p-4">
         <div className="text-center">

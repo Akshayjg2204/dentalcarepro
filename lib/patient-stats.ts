@@ -10,21 +10,20 @@ export async function getPatientStats(patientId: string) {
 
     if (appointmentsError) throw appointmentsError
 
-    // Get patient payments
-    const { data: payments, error: paymentsError } = await supabase
-      .from("payments")
+    const { data: billingRecords, error: billingError } = await supabase
+      .from("billing_records")
       .select("*")
       .eq("patient_id", patientId)
 
-    if (paymentsError) throw paymentsError
+    if (billingError) throw billingError
 
     const totalAppointments = appointments?.length || 0
     const completedAppointments = appointments?.filter((apt) => apt.status === "completed").length || 0
     const pendingAppointments = appointments?.filter((apt) => apt.status === "pending").length || 0
 
-    const totalPaid = payments?.reduce((sum, payment) => sum + payment.paid_amount, 0) || 0
+    const totalPaid = billingRecords?.reduce((sum, record) => sum + (record.amount_paid || 0), 0) || 0
     const totalOutstanding =
-      payments?.reduce((sum, payment) => sum + (payment.bill_amount - payment.paid_amount), 0) || 0
+      billingRecords?.reduce((sum, record) => sum + ((record.amount || 0) - (record.amount_paid || 0)), 0) || 0
 
     return {
       totalAppointments,

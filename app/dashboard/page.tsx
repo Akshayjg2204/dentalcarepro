@@ -1,118 +1,72 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
-import { getCurrentUser, signOut } from "@/lib/auth"
+import { useEffect, useState } from "react"
 import { PatientDashboard } from "@/components/patient-dashboard"
 import { DoctorDashboard } from "@/components/doctor-dashboard"
 import { StaffDashboard } from "@/components/staff-dashboard"
-import { Button } from "@/components/ui/button"
-import { ArrowLeft, LogOut } from 'lucide-react'
-import Link from "next/link"
-import { toast } from "sonner"
 
-export default function Dashboard() {
-  const [currentUser, setCurrentUser] = useState<any>(null)
-  const [isLoading, setIsLoading] = useState(true)
+export default function DashboardPage() {
+  const { user, profile, loading } = useAuth()
   const router = useRouter()
+  const [redirecting, setRedirecting] = useState(false)
 
   useEffect(() => {
-    checkAuth()
-  }, [])
+    if (loading || redirecting) return
 
-  const checkAuth = async () => {
-    try {
-      const user = await getCurrentUser()
-      if (!user) {
-        router.push("/login")
-        return
-      }
-
-      // Redirect admin to admin dashboard
-      if (user.profile.role === "admin") {
-        router.push("/admin")
-        return
-      }
-
-      setCurrentUser(user)
-    } catch (error: any) {
-      console.error("Auth check error:", error)
-      toast.error("Authentication failed")
+    if (!user || !profile) {
+      console.log("No user or profile, redirecting to login")
+      setRedirecting(true)
       router.push("/login")
-    } finally {
-      setIsLoading(false)
+      return
     }
-  }
 
-  const handleSignOut = async () => {
-    try {
-      await signOut()
-      toast.success("Signed out successfully")
-      router.push("/")
-    } catch (error: any) {
-      toast.error("Failed to sign out")
+    console.log("Dashboard: User role is", profile.role)
+
+    // Redirect based on role
+    if (profile.role === "admin") {
+      console.log("Admin user detected, redirecting to admin dashboard")
+      setRedirecting(true)
+      router.push("/admin")
+      return
     }
-  }
 
-  if (isLoading) {
+    // For other roles, stay on this page
+    console.log(`${profile.role} user staying on dashboard`)
+  }, [user, profile, loading, router, redirecting])
+
+  if (loading || redirecting) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading dashboard...</p>
-        </div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
     )
   }
 
-  const renderDashboard = () => {
-    switch (currentUser?.profile?.role) {
-      case "patient":
-        return <PatientDashboard user={currentUser} />
-      case "doctor":
-        return <DoctorDashboard user={currentUser} />
-      case "staff":
-        return <StaffDashboard user={currentUser} />
-      default:
-        return <div>Invalid role</div>
-    }
+  if (!user || !profile) {
+    return null // Will redirect to login
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b px-4 sm:px-6 py-3 sm:py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3 sm:space-x-4">
-            <Link href="/" className="flex items-center text-gray-600 hover:text-gray-800">
-              <ArrowLeft className="w-5 h-5" />
-              <span className="sr-only">Back Home</span>
-            </Link>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-800">
-                {currentUser?.profile?.role === "patient" && "Patient Dashboard"}
-                {currentUser?.profile?.role === "doctor" && "Doctor Dashboard"}
-                {currentUser?.profile?.role === "staff" && "Staff Dashboard"}
-              </h1>
-              <p className="text-sm sm:text-base text-gray-600">
-                Welcome back, {currentUser?.profile?.first_name}
-              </p>
-            </div>
+  // Render appropriate dashboard based on role
+  switch (profile.role) {
+    case "patient":
+      return <PatientDashboard />
+    case "doctor":
+      return <DoctorDashboard user={profile} />
+    case "staff":
+      return <StaffDashboard />
+    case "admin":
+      // This shouldn't happen due to redirect above, but just in case
+      return null
+    default:
+      return (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">Unknown Role</h1>
+            <p className="text-gray-600">Your account role is not recognized. Please contact support.</p>
           </div>
-          <Button
-            variant="outline"
-            onClick={handleSignOut}
-            className="flex items-center bg-transparent p-2 sm:px-3 sm:py-2"
-            size="sm"
-          >
-            <LogOut className="w-4 h-4" />
-            <span className="sr-only sm:not-sr-only sm:ml-2">Sign Out</span>
-          </Button>
         </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="p-6">{renderDashboard()}</div>
-    </div>
-  )
+      )
+  }
 }

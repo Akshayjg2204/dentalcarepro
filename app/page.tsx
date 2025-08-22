@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Phone, MapPin, Clock, Stethoscope } from 'lucide-react'
+import { Phone, MapPin, Clock, Stethoscope } from "lucide-react"
 import Link from "next/link"
 import { getClinicSettings } from "@/lib/clinic-settings"
 import { getCurrentUser } from "@/lib/auth"
@@ -29,24 +29,20 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
 
-  useEffect(() => {
-    Promise.all([fetchClinicSettings(), checkAuthentication()])
-  }, [])
-
-  const checkAuthentication = async () => {
+  // Memoized functions for better performance
+  const checkAuthentication = useCallback(async () => {
     try {
       const user = await getCurrentUser()
       setCurrentUser(user)
     } catch (error) {
       console.error("Auth check error:", error)
-      // Don't show error toast on home page, just set user to null
       setCurrentUser(null)
     } finally {
       setIsCheckingAuth(false)
     }
-  }
+  }, [])
 
-  const fetchClinicSettings = async () => {
+  const fetchClinicSettings = useCallback(async () => {
     try {
       const settings = await getClinicSettings()
       setClinicSettings(settings)
@@ -55,15 +51,54 @@ export default function HomePage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [])
 
-  const handleCallNow = () => {
+  // Optimized initialization
+  useEffect(() => {
+    const initializePage = async () => {
+      // Run auth check and settings fetch in parallel
+      await Promise.all([checkAuthentication(), fetchClinicSettings()])
+    }
+
+    initializePage()
+  }, [checkAuthentication, fetchClinicSettings])
+
+  // Memoized computed values
+  const dashboardLink = useMemo(() => {
+    if (!currentUser) return "/login"
+
+    if (currentUser.profile.role === "admin") {
+      return "/admin?tab=appointments"
+    } else {
+      return "/dashboard"
+    }
+  }, [currentUser])
+
+  const buttonText = useMemo(() => {
+    if (isCheckingAuth) return "Loading..."
+    if (!currentUser) return "Login"
+
+    switch (currentUser.profile.role) {
+      case "admin":
+        return "Admin Dashboard"
+      case "doctor":
+        return "Doctor Dashboard"
+      case "staff":
+        return "Staff Dashboard"
+      case "patient":
+        return "Patient Dashboard"
+      default:
+        return "Dashboard"
+    }
+  }, [isCheckingAuth, currentUser])
+
+  const handleCallNow = useCallback(() => {
     if (clinicSettings?.phone) {
       window.open(`tel:${clinicSettings.phone}`, "_self")
     }
-  }
+  }, [clinicSettings?.phone])
 
-  const handleGetDirections = () => {
+  const handleGetDirections = useCallback(() => {
     if (clinicSettings?.google_maps_link) {
       window.open(clinicSettings.google_maps_link, "_blank")
     } else if (clinicSettings?.address) {
@@ -71,9 +106,10 @@ export default function HomePage() {
       const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`
       window.open(googleMapsUrl, "_blank")
     }
-  }
+  }, [clinicSettings])
 
-  const formatWorkingHours = () => {
+  // Memoized working hours formatting
+  const formattedWorkingHours = useMemo(() => {
     if (!clinicSettings?.working_hours) return "Contact for hours"
 
     const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
@@ -106,7 +142,6 @@ export default function HomePage() {
       return ""
     })
 
-    // Add closed days
     const closedDays = days
       .filter((day, index) => {
         const hours = clinicSettings.working_hours[day]
@@ -119,7 +154,7 @@ export default function HomePage() {
     }
 
     return formatted.join("\n")
-  }
+  }, [clinicSettings?.working_hours])
 
   const areConsecutive = (selectedDays: string[], allDays: string[]) => {
     const indices = selectedDays.map((day) => allDays.indexOf(day)).sort((a, b) => a - b)
@@ -129,36 +164,6 @@ export default function HomePage() {
       }
     }
     return true
-  }
-
-  const getDashboardLink = () => {
-    if (!currentUser) return "/login"
-    
-    // Redirect based on role
-    if (currentUser.profile.role === "admin") {
-      return "/admin"
-    } else {
-      return "/dashboard"
-    }
-  }
-
-  const getButtonText = () => {
-    if (isCheckingAuth) return "Loading..."
-    if (!currentUser) return "Login"
-    
-    // Show role-specific text
-    switch (currentUser.profile.role) {
-      case "admin":
-        return "Admin Dashboard"
-      case "doctor":
-        return "Doctor Dashboard"
-      case "staff":
-        return "Staff Dashboard"
-      case "patient":
-        return "Patient Dashboard"
-      default:
-        return "Dashboard"
-    }
   }
 
   if (isLoading) {
@@ -199,13 +204,13 @@ export default function HomePage() {
           <p className="text-xl mb-8 opacity-90">{clinicSettings?.description || "Best Dentist in KoparKhairane"}</p>
 
           {/* Dynamic Login/Dashboard Button */}
-          <Link href={getDashboardLink()}>
+          <Link href={dashboardLink}>
             <Button
               size="lg"
               className="bg-white text-blue-700 hover:bg-gray-100 font-semibold px-8 py-3 rounded-lg text-lg"
               disabled={isCheckingAuth}
             >
-              {getButtonText()}
+              {buttonText}
             </Button>
           </Link>
 
@@ -277,7 +282,7 @@ export default function HomePage() {
                 <h3 className="text-xl font-semibold text-gray-800">Working Hours</h3>
                 <div className="text-sm text-gray-600 space-y-1">
                   {clinicSettings?.working_hours ? (
-                    <pre className="whitespace-pre-line font-sans">{formatWorkingHours()}</pre>
+                    <pre className="whitespace-pre-line font-sans">{formattedWorkingHours}</pre>
                   ) : (
                     <>
                       <p>Mon-Fri: 10:00 AM - 10:00 PM</p>

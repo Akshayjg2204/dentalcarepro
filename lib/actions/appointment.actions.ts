@@ -10,6 +10,7 @@ export interface CreateAppointmentData {
   appointmentTime: string
   notes?: string
   status?: "pending" | "approved" | "rejected" | "completed" | "cancelled"
+  preferredDoctor?: string
 }
 
 export async function createAppointment(appointmentData: CreateAppointmentData) {
@@ -23,6 +24,7 @@ export async function createAppointment(appointmentData: CreateAppointmentData) 
         appointment_time: appointmentData.appointmentTime,
         notes: appointmentData.notes || null,
         status: appointmentData.status || "pending",
+        preferred_doctor: appointmentData.preferredDoctor || null,
       })
       .select()
       .single()

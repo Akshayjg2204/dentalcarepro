@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner"
 import { Search, UserPlus, Clock, Stethoscope, Users } from 'lucide-react'
 import { supabase } from "@/lib/supabase"
-import { createAppointment } from "@/lib/actions/appointment.actions"
+import { createAppointment } from "@/lib/appointments"
 import { EnhancedTimeSelector } from "@/components/enhanced-time-selector"
 
 interface Patient {
@@ -34,6 +34,7 @@ interface EmergencyAppointmentModalProps {
   onClose: () => void
   onAppointmentCreated: () => void
   preSelectedPatient?: Patient | null
+  currentUserRole?: string
 }
 
 export function EmergencyAppointmentModal({
@@ -41,6 +42,7 @@ export function EmergencyAppointmentModal({
   onClose,
   onAppointmentCreated,
   preSelectedPatient,
+  currentUserRole,
 }: EmergencyAppointmentModalProps) {
   const [step, setStep] = useState<"search" | "create" | "appointment">("search")
   const [searchTerm, setSearchTerm] = useState("")
@@ -236,24 +238,24 @@ export function EmergencyAppointmentModal({
     try {
       const result = await createAppointment({
         patientId: selectedPatient.id,
+        doctorId: appointmentData.doctorId !== "none" ? appointmentData.doctorId : undefined,
+        staffId: appointmentData.staffId !== "none" ? appointmentData.staffId : undefined,
         appointmentType: appointmentData.appointmentType,
         appointmentDate: appointmentData.appointmentDate,
         appointmentTime: appointmentData.appointmentTime,
         notes: appointmentData.notes,
-        status: "approved", // Walk-in appointments are auto-approved
+        priority: "urgent",
       })
 
       if (result.success) {
-        // If doctor or staff are assigned, update the appointment
-        if (appointmentData.doctorId !== "none" || appointmentData.staffId !== "none") {
-          const updateData: any = {}
-          if (appointmentData.doctorId !== "none") updateData.doctor_id = appointmentData.doctorId
-          if (appointmentData.staffId !== "none") updateData.staff_id = appointmentData.staffId
-
-          await supabase.from("appointments").update(updateData).eq("id", result.data.id)
+        // Auto-approve if created by admin
+        if (currentUserRole === "admin") {
+          const { updateAppointmentStatus } = await import("@/lib/appointments")
+          await updateAppointmentStatus(result.data.id, "approved")
+          toast.success("Walk-in appointment created and auto-approved!")
+        } else {
+          toast.success("Walk-in appointment created successfully!")
         }
-
-        toast.success("Walk-in appointment created successfully!")
         onAppointmentCreated()
         onClose()
       } else {

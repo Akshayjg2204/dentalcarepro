@@ -21,6 +21,9 @@ interface ClinicSettings {
   working_hours: {
     [key: string]: { open: string; close: string; closed: boolean }
   }
+  clinic_description_short?: string
+  main_tagline?: string
+  clinic_description_long?: string
 }
 
 export default function HomePage() {
@@ -192,16 +195,19 @@ export default function HomePage() {
           {/* Clinic Name */}
           <h2 className="text-lg font-medium mb-2 opacity-90">
             {clinicSettings?.clinic_name?.toUpperCase() || "SHREE MULTISPECIALITY DENTAL CLINIC"}
-            {clinicSettings?.description && ` (${clinicSettings.description})`}
+            {clinicSettings?.clinic_description_short && ` (${clinicSettings.clinic_description_short})`}
           </h2>
 
           {/* Main Heading */}
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
-            Your Smile is Our <span className="text-yellow-400">Priority</span>
+            {clinicSettings?.main_tagline || "Your Smile is Our Priority"}
           </h1>
 
           {/* Subtext */}
-          <p className="text-xl mb-8 opacity-90">{clinicSettings?.description || "Best Dentist in KoparKhairane"}</p>
+          <p className="text-xl mb-8 opacity-90">
+            {clinicSettings?.clinic_description_long ||
+              "Experience world-class dental care with our team of expert dentists. We provide comprehensive, gentle, and personalized treatment for the whole family."}
+          </p>
 
           {/* Dynamic Login/Dashboard Button */}
           <Link href={dashboardLink}>

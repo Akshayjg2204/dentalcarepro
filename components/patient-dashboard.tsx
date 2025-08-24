@@ -900,26 +900,10 @@ export function PatientDashboard() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label>First Name</Label>
-                    {isEditing ? (
-                      <Input
-                        value={editedProfile.first_name || ""}
-                        onChange={(e) => setEditedProfile((prev: any) => ({ ...prev, first_name: e.target.value }))}
-                      />
-                    ) : (
-                      <p className="text-sm text-gray-600 mt-1">{profile.first_name}</p>
-                    )}
-                  </div>
-                  <div>
-                    <Label>Last Name</Label>
-                    {isEditing ? (
-                      <Input
-                        value={editedProfile.last_name || ""}
-                        onChange={(e) => setEditedProfile((prev: any) => ({ ...prev, last_name: e.target.value }))}
-                      />
-                    ) : (
-                      <p className="text-sm text-gray-600 mt-1">{profile.last_name}</p>
-                    )}
+                    <Label>Full Name</Label>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {profile.first_name} {profile.last_name}
+                    </p>
                   </div>
                   <div>
                     <Label>Email</Label>

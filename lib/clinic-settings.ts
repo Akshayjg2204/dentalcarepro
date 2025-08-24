@@ -4,16 +4,24 @@ export interface ClinicSettings {
   id: string
   clinic_name: string
   clinic_subtitle?: string
+  main_tagline?: string
+  clinic_description_short?: string // Goes beside clinic name
+  clinic_description_long?: string // Goes below main tagline
   phone?: string
   email?: string
   address?: string
   city?: string
   state?: string
   zip_code?: string
+  postal_code?: string
   country?: string
   website?: string
+  google_maps_link?: string
 
-  // Working Hours
+  opening_time?: string
+  closing_time?: string
+  working_days?: string
+
   monday_open?: string
   monday_close?: string
   tuesday_open?: string
@@ -29,16 +37,10 @@ export interface ClinicSettings {
   sunday_open?: string
   sunday_close?: string
 
-  // Additional Settings
   appointment_duration?: number
-  emergency_phone?: string
+  emergency_contact?: string
   description?: string
   logo_url?: string
-
-  // Social Media
-  facebook_url?: string
-  instagram_url?: string
-  twitter_url?: string
 
   created_at: string
   updated_at: string
@@ -85,6 +87,8 @@ export async function updateClinicSettings(settings: Partial<ClinicSettings>): P
       "saturday_close",
       "sunday_open",
       "sunday_close",
+      "opening_time",
+      "closing_time",
     ]
 
     // Convert empty strings to null for time fields

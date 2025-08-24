@@ -199,21 +199,6 @@ export default function SettingsPage() {
                   />
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="website" className="text-sm font-medium">
-                  Website
-                </Label>
-                <div className="relative">
-                  <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    id="website"
-                    value={settings.website || ""}
-                    onChange={(e) => handleInputChange("website", e.target.value)}
-                    placeholder="https://www.example.com"
-                    className="pl-10"
-                  />
-                </div>
-              </div>
             </div>
 
             <div className="space-y-2">
@@ -301,79 +286,8 @@ export default function SettingsPage() {
 
         {/* Social Media */}
         <Card>
-          <CardHeader className="pb-3 sm:pb-4">
-            <div className="flex items-center space-x-2">
-              <Globe className="w-5 h-5 text-purple-600" />
-              <CardTitle className="text-lg sm:text-xl">Social Media</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="facebook_url" className="text-sm font-medium">
-                  Facebook
-                </Label>
-                <div className="relative">
-                  <Facebook className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    id="facebook_url"
-                    value={settings.facebook_url || ""}
-                    onChange={(e) => handleInputChange("facebook_url", e.target.value)}
-                    placeholder="https://facebook.com/..."
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="instagram_url" className="text-sm font-medium">
-                  Instagram
-                </Label>
-                <div className="relative">
-                  <Instagram className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    id="instagram_url"
-                    value={settings.instagram_url || ""}
-                    onChange={(e) => handleInputChange("instagram_url", e.target.value)}
-                    placeholder="https://instagram.com/..."
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="twitter_url" className="text-sm font-medium">
-                  Twitter
-                </Label>
-                <div className="relative">
-                  <Twitter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    id="twitter_url"
-                    value={settings.twitter_url || ""}
-                    onChange={(e) => handleInputChange("twitter_url", e.target.value)}
-                    placeholder="https://twitter.com/..."
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="linkedin_url" className="text-sm font-medium">
-                  LinkedIn
-                </Label>
-                <div className="relative">
-                  <Linkedin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    id="linkedin_url"
-                    value={settings.linkedin_url || ""}
-                    onChange={(e) => handleInputChange("linkedin_url", e.target.value)}
-                    placeholder="https://linkedin.com/..."
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-            </div>
-          </CardContent>
+          
+          
         </Card>
 
         {/* Additional Information */}
@@ -383,17 +297,45 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="description" className="text-sm font-medium">
-                Clinic Description
+              <Label htmlFor="main_tagline" className="text-sm font-medium">
+                Main Tagline
+              </Label>
+              <Input
+                id="main_tagline"
+                value={settings.main_tagline || ""}
+                onChange={(e) => handleInputChange("main_tagline", e.target.value)}
+                placeholder="e.g., Your Smile is Our Priority"
+                className="w-full"
+              />
+              <p className="text-xs text-gray-500">This will be the main heading on your homepage</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="clinic_description_short" className="text-sm font-medium">
+                Clinic Description (Short)
+              </Label>
+              <Input
+                id="clinic_description_short"
+                value={settings.clinic_description_short || ""}
+                onChange={(e) => handleInputChange("clinic_description_short", e.target.value)}
+                placeholder="Brief description that appears beside clinic name"
+                className="w-full"
+              />
+              <p className="text-xs text-gray-500">This appears beside your clinic name in parentheses</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="clinic_description_long" className="text-sm font-medium">
+                Clinic Description (Detailed)
               </Label>
               <Textarea
-                id="description"
-                value={settings.description || ""}
-                onChange={(e) => handleInputChange("description", e.target.value)}
-                placeholder="Brief description about your clinic, services, and specialties..."
+                id="clinic_description_long"
+                value={settings.clinic_description_long || ""}
+                onChange={(e) => handleInputChange("clinic_description_long", e.target.value)}
+                placeholder="Detailed description that appears below the main tagline..."
                 className="min-h-[100px] resize-none"
               />
-              <p className="text-xs text-gray-500">This description will be displayed on your clinic's public pages</p>
+              <p className="text-xs text-gray-500">This description appears below your main tagline on the homepage</p>
             </div>
 
             <div className="space-y-2">

@@ -509,6 +509,7 @@ export function PatientManagementSection({ currentUserId, currentUserRole }: Pat
           fetchPatients() // Refresh the patient list
           toast.success("Patient created successfully!")
         }}
+        currentUserRole={currentUserRole as "admin" | "doctor" | "staff" | "patient"}
       />
 
       <PatientProfileModal

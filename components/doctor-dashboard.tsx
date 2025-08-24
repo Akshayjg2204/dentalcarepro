@@ -48,6 +48,8 @@ import { EmergencyAppointmentModal } from "@/components/emergency-appointment-mo
 import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
 import { TreatmentPlansModal } from "@/components/treatment-plans-modal"
+import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 
 interface DoctorDashboardProps {
   user: any
@@ -91,9 +93,50 @@ export function DoctorDashboard({ user }: DoctorDashboardProps) {
   const { signOut } = useAuth()
   const router = useRouter()
 
+  const searchParams = useSearchParams()
+  const highlightId = searchParams.get("highlight")
+
   useEffect(() => {
     fetchDashboardData()
   }, [user.id])
+
+  useEffect(() => {
+    const tab = searchParams.get("tab")
+    const highlight = searchParams.get("highlight")
+
+    if (tab && highlight && ["overview", "appointments", "patients", "leads"].includes(tab)) {
+      setActiveTab(tab)
+
+      setTimeout(() => {
+        const url = new URL(window.location.href)
+        url.searchParams.delete("tab")
+        window.history.replaceState({}, "", url.toString())
+      }, 500)
+    }
+  }, [searchParams])
+
+  const handleTabChange = (newTab: string) => {
+    setActiveTab(newTab)
+  }
+
+  useEffect(() => {
+    if (highlightId && appointments.length > 0) {
+      // Small delay to ensure DOM is rendered
+      setTimeout(() => {
+        const element = document.getElementById(`appointment-${highlightId}`)
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth", block: "center" })
+
+          // Remove highlight after 3 seconds
+          setTimeout(() => {
+            const url = new URL(window.location.href)
+            url.searchParams.delete("highlight")
+            window.history.replaceState({}, "", url.toString())
+          }, 3000)
+        }
+      }, 100)
+    }
+  }, [highlightId, appointments])
 
   useEffect(() => {
     filterAppointments()
@@ -435,7 +478,7 @@ export function DoctorDashboard({ user }: DoctorDashboardProps) {
           </Card>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
           <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:grid-cols-4">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <TrendingUp className="w-4 h-4" />
@@ -484,17 +527,18 @@ export function DoctorDashboard({ user }: DoctorDashboardProps) {
                         </div>
                       </Button>
 
-                      <Button
-                        variant="outline"
-                        className="h-16 sm:h-20 flex flex-col items-center justify-center space-y-1 sm:space-y-2 bg-transparent hover:bg-green-50 border-green-200 text-xs sm:text-sm"
-                        onClick={() => setActiveTab("patients")}
-                      >
-                        <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
-                        <div className="text-center">
-                          <div className="font-medium text-green-900">Patient Records</div>
-                          <div className="text-xs text-green-600 hidden sm:block">View patient information</div>
-                        </div>
-                      </Button>
+                      <Link href="/doctor/patient-records" className="w-full">
+                        <Button
+                          variant="outline"
+                          className="h-16 sm:h-20 flex flex-col items-center justify-center space-y-1 sm:space-y-2 bg-transparent hover:bg-green-50 border-green-200 text-xs sm:text-sm w-full"
+                        >
+                          <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
+                          <div className="text-center">
+                            <div className="font-medium text-green-900">Patient Records</div>
+                            <div className="text-xs text-green-600 hidden sm:block">View patient information</div>
+                          </div>
+                        </Button>
+                      </Link>
 
                       <Button
                         variant="outline"
@@ -581,13 +625,13 @@ export function DoctorDashboard({ user }: DoctorDashboardProps) {
                   </div>
                   <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
                     <Button
-                      onClick={fetchAppointments}
+                      onClick={handleRefreshAppointments}
                       variant="outline"
                       size="sm"
-                      disabled={loading}
+                      disabled={isRefreshing}
                       className="flex items-center gap-2 bg-transparent"
                     >
-                      <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+                      <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
                       Refresh
                     </Button>
 
@@ -654,8 +698,11 @@ export function DoctorDashboard({ user }: DoctorDashboardProps) {
                         return (
                           <div
                             key={appointment.id}
+                            id={`appointment-${appointment.id}`}
                             className={`bg-white rounded-lg border p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow ${
                               shouldHighlight ? "ring-2 ring-blue-500 bg-blue-50" : ""
+                            } ${
+                              highlightId === appointment.id ? "ring-2 ring-blue-500 bg-blue-50 border-blue-300" : ""
                             }`}
                           >
                             {/* Mobile Layout */}
@@ -1074,6 +1121,7 @@ export function DoctorDashboard({ user }: DoctorDashboardProps) {
           isOpen={walkInModal}
           onClose={() => setWalkInModal(false)}
           onAppointmentCreated={fetchDashboardData}
+          currentUserRole="doctor"
         />
 
         <AppointmentAssignmentModal

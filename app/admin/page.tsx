@@ -1598,6 +1598,7 @@ export default function AdminDashboard() {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onUserCreated={handleUserCreated}
+        currentUserRole="admin"
       />
       <CompleteAppointmentModal
         isOpen={!!completeModalAppointment}

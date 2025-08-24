@@ -52,6 +52,43 @@ export interface PaymentUpdateData {
   notes?: string
 }
 
+export async function getTotalOutstandingBalance(): Promise<number> {
+  try {
+    const [paymentsResult, customBillsResult] = await Promise.all([
+      supabase.from("payments").select("bill_amount, paid_amount"),
+      supabase.from("custom_bills").select("bill_amount, paid_amount"),
+    ])
+
+    if (paymentsResult.error) {
+      console.error("Error fetching payments for outstanding balance:", paymentsResult.error)
+    }
+
+    if (customBillsResult.error) {
+      console.error("Error fetching custom bills for outstanding balance:", customBillsResult.error)
+    }
+
+    const payments = paymentsResult.data || []
+    const customBills = customBillsResult.data || []
+
+    // Calculate outstanding from regular payments
+    const paymentsOutstanding = payments.reduce((total, payment) => {
+      const outstanding = (payment.bill_amount || 0) - (payment.paid_amount || 0)
+      return total + Math.max(0, outstanding)
+    }, 0)
+
+    // Calculate outstanding from custom bills
+    const customBillsOutstanding = customBills.reduce((total, bill) => {
+      const outstanding = (bill.bill_amount || 0) - (bill.paid_amount || 0)
+      return total + Math.max(0, outstanding)
+    }, 0)
+
+    return paymentsOutstanding + customBillsOutstanding
+  } catch (error) {
+    console.error("Error calculating total outstanding balance:", error)
+    return 0
+  }
+}
+
 export async function getAllPayments(): Promise<Payment[]> {
   try {
     const { data, error } = await supabase

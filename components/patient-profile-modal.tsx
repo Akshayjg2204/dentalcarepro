@@ -891,9 +891,17 @@ export function PatientProfileModal({
     (appointment: Appointment) => {
       // Close the patient profile modal
       onClose()
-      router.push(`/admin?tab=appointments&highlight=${appointment.id}`)
+      const dashboardPath =
+        currentUserRole === "admin"
+          ? "/admin"
+          : currentUserRole === "doctor"
+            ? "/dashboard"
+            : currentUserRole === "staff"
+              ? "/dashboard"
+              : "/admin"
+      router.push(`${dashboardPath}?tab=appointments&highlight=${appointment.id}`)
     },
-    [onClose, router],
+    [onClose, router, currentUserRole],
   )
 
   const handleAppointmentCompleted = (patientId?: string, shouldOpenProfile?: boolean) => {
@@ -1168,9 +1176,7 @@ export function PatientProfileModal({
                   <p className="text-sm text-gray-500">{profile?.email}</p>
                 </div>
               </div>
-              <Button variant="ghost" size="sm" onClick={onClose}>
-                
-              </Button>
+              <Button variant="ghost" size="sm" onClick={onClose}></Button>
             </div>
           </DialogHeader>
 
@@ -1667,7 +1673,15 @@ export function PatientProfileModal({
                                       size="sm"
                                       onClick={() => {
                                         onClose()
-                                        router.push(`/admin?tab=appointments&highlight=${appointment.id}`)
+                                        const dashboardPath =
+                                          currentUserRole === "admin"
+                                            ? "/admin"
+                                            : currentUserRole === "doctor"
+                                              ? "/dashboard"
+                                              : currentUserRole === "staff"
+                                                ? "/dashboard"
+                                                : "/admin"
+                                        router.push(`${dashboardPath}?tab=appointments&highlight=${appointment.id}`)
                                       }}
                                       className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1 h-7"
                                     >
@@ -1796,7 +1810,15 @@ export function PatientProfileModal({
                                           size="sm"
                                           onClick={() => {
                                             onClose()
-                                            router.push(`/admin?tab=appointments&highlight=${appointment.id}`)
+                                            const dashboardPath =
+                                              currentUserRole === "admin"
+                                                ? "/admin"
+                                                : currentUserRole === "doctor"
+                                                  ? "/dashboard"
+                                                  : currentUserRole === "staff"
+                                                    ? "/dashboard"
+                                                    : "/admin"
+                                            router.push(`${dashboardPath}?tab=appointments&highlight=${appointment.id}`)
                                           }}
                                           className="bg-blue-600 hover:bg-blue-700 text-white"
                                         >
@@ -2021,7 +2043,7 @@ export function PatientProfileModal({
                                     </p>
                                   )}
                                   <p className="text-sm text-gray-600 mb-1">
-                                    <strong>Amount:</strong> ${treatment.cost}
+                                    <strong>Amount:</strong> Rs {treatment.cost}
                                   </p>
                                   {treatment.treatment_date && (
                                     <p className="text-sm text-gray-600 mb-1">

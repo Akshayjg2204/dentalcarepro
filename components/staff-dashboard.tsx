@@ -15,7 +15,6 @@ import {
   AlertTriangle,
   User,
   TrendingUp,
-  CheckCircle,
   LogOut,
   RefreshCw,
   CalendarIcon,
@@ -26,6 +25,7 @@ import {
   Trash2,
   Stethoscope,
   Receipt,
+  IndianRupee,
 } from "lucide-react"
 import { getAllAppointments, updateAppointmentStatus, deleteAppointment, type Appointment } from "@/lib/appointments"
 import { getLeadsByAssignedUser, type Lead } from "@/lib/leads"
@@ -44,26 +44,38 @@ import { useRouter } from "next/navigation"
 import { CreateBillModal } from "./create-bill-modal"
 import { getAllUsers } from "@/lib/users"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import Link from "next/link"
+import { getTotalOutstandingBalance } from "@/lib/payments"
+import { useSearchParams } from "next/navigation"
 
 interface StaffDashboardProps {
   user: any
 }
 
 interface DashboardStats {
+  totalAppointments: number
+  pendingAppointments: number
+  completedAppointments: number
+  todayAppointments: number
   totalLeads: number
   newLeads: number
   convertedLeads: number
-  assignedAppointments: number
+  totalOutstanding: number
 }
 
 export function StaffDashboard({ user }: StaffDashboardProps) {
   const [activeTab, setActiveTab] = useState("overview")
   const [stats, setStats] = useState<DashboardStats>({
+    totalAppointments: 0,
+    pendingAppointments: 0,
+    completedAppointments: 0,
+    todayAppointments: 0,
     totalLeads: 0,
     newLeads: 0,
     convertedLeads: 0,
-    assignedAppointments: 0,
+    totalOutstanding: 0,
   })
+  const [recentAppointments, setRecentAppointments] = useState<Appointment[]>([])
   const [recentLeads, setRecentLeads] = useState<Lead[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [dueAppointmentsModal, setDueAppointmentsModal] = useState(false)
@@ -90,6 +102,46 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
   const { signOut } = useAuth()
   const router = useRouter()
 
+  const searchParams = useSearchParams()
+  const highlightId = searchParams.get("highlight")
+
+  useEffect(() => {
+    const tab = searchParams.get("tab")
+    const highlight = searchParams.get("highlight")
+
+    // Only set tab from URL if both tab and highlight parameters are present (from manage button redirect)
+    if (tab && highlight && ["overview", "appointments", "patients", "leads"].includes(tab)) {
+      setActiveTab(tab)
+
+      // Clear URL parameters after setting initial state to prevent interference with manual tab switching
+      setTimeout(() => {
+        const url = new URL(window.location.href)
+        url.searchParams.delete("tab")
+        url.searchParams.delete("highlight")
+        window.history.replaceState({}, "", url.toString())
+      }, 500)
+    }
+  }, [searchParams])
+
+  useEffect(() => {
+    if (highlightId && activeTab === "appointments") {
+      setTimeout(() => {
+        const appointmentElement = document.getElementById(`appointment-${highlightId}`)
+        if (appointmentElement) {
+          appointmentElement.scrollIntoView({ behavior: "smooth", block: "center" })
+        }
+      }, 100)
+
+      // Remove highlight after 3 seconds
+      setTimeout(() => {
+        const appointmentElement = document.getElementById(`appointment-${highlightId}`)
+        if (appointmentElement) {
+          appointmentElement.classList.remove("ring-2", "ring-blue-500", "bg-blue-50", "border-blue-300")
+        }
+      }, 3000)
+    }
+  }, [highlightId, activeTab, filteredAppointments])
+
   useEffect(() => {
     if (user?.id) {
       fetchDashboardData()
@@ -97,18 +149,39 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
   }, [user?.id])
 
   useEffect(() => {
+    if (highlightId && appointments.length > 0) {
+      // Small delay to ensure DOM is rendered
+      setTimeout(() => {
+        const element = document.getElementById(`appointment-${highlightId}`)
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth", block: "center" })
+
+          // Remove highlight after 3 seconds
+          setTimeout(() => {
+            const url = new URL(window.location.href)
+            url.searchParams.delete("highlight")
+            window.history.replaceState({}, "", url.toString())
+          }, 3000)
+        }
+      }, 100)
+    }
+  }, [highlightId, appointments])
+
+  useEffect(() => {
     filterAppointments()
   }, [appointments, appointmentFilter, highlightMyAppointments])
 
   const filterAppointments = useCallback(() => {
+    console.log("[v0] Debug - filterAppointments called")
+    console.log("[v0] Debug - user.id:", user.id)
+    console.log("[v0] Debug - highlightMyAppointments:", highlightMyAppointments)
+    console.log("[v0] Debug - appointments:", appointments)
+
     let filtered = appointments
 
     if (highlightMyAppointments) {
       filtered = filtered.filter((appointment) => {
-        const isAssigned =
-          appointment.assigned_to === user.id ||
-          appointment.assigned_doctor_id === user.id ||
-          appointment.doctor_id === user.id
+        const isAssigned = appointment.staff_id === user.id || appointment.doctor_id === user.id
         return isAssigned
       })
     }
@@ -121,101 +194,88 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
   }, [appointments, appointmentFilter, highlightMyAppointments, user.id])
 
   const fetchDashboardData = async () => {
-    if (!user?.id) {
-      console.log("[v0] No user ID available, stopping data fetch")
-      setIsLoading(false)
-      return
-    }
-
     try {
-      console.log("[v0] Starting dashboard data fetch for user:", user.id)
       setIsLoading(true)
 
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Data fetch timeout")), 10000),
-      )
+      const [appointmentsData, leadsData, paymentsData, outstandingBalance] = await Promise.all([
+        getAllAppointments(),
+        getLeadsByAssignedUser(user.id),
+        getAllPayments(),
+        getTotalOutstandingBalance(),
+      ])
 
-      console.log("[v0] Fetching leads...")
-      const leadsPromise = getLeadsByAssignedUser(user.id)
+      setAppointments(appointmentsData)
+      setPayments(paymentsData)
 
-      console.log("[v0] Fetching appointments...")
-      const appointmentsPromise = getAllAppointments()
+      const today = new Date().toISOString().split("T")[0]
+      const totalAppointments = appointmentsData.length
+      const pendingAppointments = appointmentsData.filter((apt) => apt.status === "pending").length
+      const completedAppointments = appointmentsData.filter((apt) => apt.status === "completed").length
+      const todayAppointments = appointmentsData.filter((apt) => apt.appointment_date === today).length
 
-      console.log("[v0] Fetching payments...")
-      const paymentsPromise = getAllPayments()
-
-      const [leads, allAppointments, allPayments] = (await Promise.race([
-        Promise.all([leadsPromise, appointmentsPromise, paymentsPromise]),
-        timeoutPromise,
-      ])) as [any[], any[], any[]]
-
-      console.log("[v0] Data fetched successfully - leads:", leads.length, "appointments:", allAppointments.length)
-
-      setAppointments(allAppointments)
-      setPayments(allPayments)
-      const assignedAppointments = allAppointments.filter(
-        (apt) => apt.staff_id === user.id || apt.assigned_to === user.id,
-      )
-
-      const totalLeads = leads.length
-      const newLeads = leads.filter((lead) => lead.status === "new").length
-      const convertedLeads = leads.filter((lead) => lead.status === "converted").length
+      const totalLeads = leadsData.length
+      const newLeads = leadsData.filter((lead) => lead.status === "new").length
+      const convertedLeads = leadsData.filter((lead) => lead.status === "converted").length
 
       setStats({
+        totalAppointments,
+        pendingAppointments,
+        completedAppointments,
+        todayAppointments,
         totalLeads,
         newLeads,
         convertedLeads,
-        assignedAppointments: assignedAppointments.length,
+        totalOutstanding: outstandingBalance,
       })
 
-      setRecentLeads(leads.slice(0, 5))
-      console.log("[v0] Dashboard data set successfully")
+      setRecentAppointments(appointmentsData.slice(0, 5))
+      setRecentLeads(leadsData.slice(0, 5))
     } catch (error: any) {
-      console.error("[v0] Failed to fetch dashboard data:", error)
+      console.error("Failed to fetch dashboard data:", error)
       toast.error("Failed to load dashboard data")
-
-      setStats({
-        totalLeads: 0,
-        newLeads: 0,
-        convertedLeads: 0,
-        assignedAppointments: 0,
-      })
-      setRecentLeads([])
     } finally {
-      console.log("[v0] Setting loading to false")
       setIsLoading(false)
     }
   }
 
   const fetchAppointments = useCallback(async () => {
     try {
-      setLoading(true)
-      const allAppointments = await getAllAppointments()
-      setAppointments(allAppointments)
-    } catch (error) {
+      const appointmentsData = await getAllAppointments()
+      setAppointments(appointmentsData)
+    } catch (error: any) {
       console.error("Failed to fetch appointments:", error)
       toast.error("Failed to fetch appointments")
-    } finally {
-      setLoading(false)
     }
   }, [])
 
   const handleRefreshAppointments = async () => {
     setIsRefreshing(true)
-    await fetchDashboardData()
+    await fetchAppointments()
     setIsRefreshing(false)
-    toast.success("Data refreshed!")
+    toast.success("Appointments refreshed!")
   }
 
-  const handleAppointmentAction = async (appointmentId: string, status: string) => {
+  const handleSignOut = async () => {
     try {
-      setProcessingAppointments((prev) => new Set(prev).add(appointmentId))
-      await updateAppointmentStatus(appointmentId, status)
-      await fetchAppointments()
-      toast.success(`Appointment ${status} successfully`)
-    } catch (error) {
-      console.error(`Failed to ${status} appointment:`, error)
-      toast.error(`Failed to ${status} appointment`)
+      setSigningOut(true)
+      await signOut()
+      router.push("/login")
+    } catch (error: any) {
+      toast.error("Failed to sign out")
+      setSigningOut(false)
+    }
+  }
+
+  const handleAppointmentAction = async (appointmentId: string, action: "approved" | "rejected") => {
+    setProcessingAppointments((prev) => new Set(prev).add(appointmentId))
+
+    try {
+      await updateAppointmentStatus(appointmentId, action)
+      toast.success(`Appointment ${action} successfully!`)
+      fetchAppointments()
+      fetchDashboardData()
+    } catch (error: any) {
+      toast.error(`Failed to ${action.slice(0, -1)} appointment: ` + (error.message || "Unknown error"))
     } finally {
       setProcessingAppointments((prev) => {
         const newSet = new Set(prev)
@@ -225,62 +285,8 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
     }
   }
 
-  const handleDeleteAppointment = async (appointmentId: string) => {
-    try {
-      setDeletingAppointments((prev) => new Set(prev).add(appointmentId))
-      await deleteAppointment(appointmentId)
-      await fetchAppointments()
-      toast.success("Appointment deleted successfully")
-    } catch (error) {
-      console.error("Failed to delete appointment:", error)
-      toast.error("Failed to delete appointment")
-    } finally {
-      setDeletingAppointments((prev) => {
-        const newSet = new Set(prev)
-        newSet.delete(appointmentId)
-        return newSet
-      })
-    }
-  }
-
-  const handleCompleteAppointment = (appointment: Appointment) => {
-    setCompleteModalAppointment(appointment)
-  }
-
-  const handleUpdatePayment = (appointment: Appointment) => {
-    const payment = getAppointmentPayment(appointment.id)
-    setUpdatePaymentModal({ appointment, payment })
-  }
-
   const getAppointmentPayment = (appointmentId: string) => {
     return payments.find((payment) => payment.appointment_id === appointmentId)
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "new":
-        return "bg-blue-100 text-blue-800"
-      case "contacted":
-        return "bg-yellow-100 text-yellow-800"
-      case "qualified":
-        return "bg-purple-100 text-purple-800"
-      case "converted":
-        return "bg-green-100 text-green-800"
-      case "not_interested":
-        return "bg-red-100 text-red-800"
-      case "pending":
-        return "bg-yellow-100 text-yellow-800"
-      case "approved":
-        return "bg-green-100 text-green-800"
-      case "rejected":
-        return "bg-red-100 text-red-800"
-      case "completed":
-        return "bg-blue-100 text-blue-800"
-      case "cancelled":
-        return "bg-gray-100 text-gray-800"
-      default:
-        return "bg-gray-100 text-gray-800"
-    }
   }
 
   const getPaymentStatusColor = (status: string) => {
@@ -296,14 +302,39 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
     }
   }
 
-  const handleSignOut = async () => {
+  const handleUpdatePayment = (appointment: Appointment) => {
+    const payment = getAppointmentPayment(appointment.id)
+    if (payment) {
+      setUpdatePaymentModal({ appointment, payment })
+    } else {
+      toast.error("No payment record found for this appointment")
+    }
+  }
+
+  const handleCompleteAppointment = async (appointment: Appointment) => {
+    setCompleteModalAppointment(appointment)
+  }
+
+  const handleDeleteAppointment = async (appointmentId: string) => {
+    if (!confirm("Are you sure you want to delete this appointment? This action cannot be undone.")) {
+      return
+    }
+
+    setDeletingAppointments((prev) => new Set(prev).add(appointmentId))
+
     try {
-      setSigningOut(true)
-      await signOut()
-      router.push("/login")
+      await deleteAppointment(appointmentId)
+      toast.success("Appointment deleted successfully!")
+      fetchAppointments()
+      fetchDashboardData()
     } catch (error: any) {
-      toast.error("Failed to sign out")
-      setSigningOut(false)
+      toast.error("Failed to delete appointment: " + (error.message || "Unknown error"))
+    } finally {
+      setDeletingAppointments((prev) => {
+        const newSet = new Set(prev)
+        newSet.delete(appointmentId)
+        return newSet
+      })
     }
   }
 
@@ -316,26 +347,50 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
   }
 
   const formatTime = (timeString: string) => {
-    return new Date(`1970-01-01T${timeString}Z`).toLocaleTimeString("en-US", {
-      hour: "2-digit",
+    return new Date(`2000-01-01T${timeString}`).toLocaleTimeString("en-US", {
+      hour: "numeric",
       minute: "2-digit",
+      hour12: true,
     })
   }
 
-  const loadPatients = async () => {
-    try {
-      const users = await getAllUsers()
-      const patients = users.filter((u) => u.role === "patient")
-      setAllPatients(patients)
-    } catch (error) {
-      console.error("Error loading patients:", error)
-      toast.error("Failed to load patients")
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "pending":
+        return "bg-yellow-100 text-yellow-800"
+      case "approved":
+        return "bg-green-100 text-green-800"
+      case "rejected":
+        return "bg-red-100 text-red-800"
+      case "completed":
+        return "bg-blue-100 text-blue-800"
+      case "cancelled":
+        return "bg-gray-100 text-gray-800"
+      case "new":
+        return "bg-blue-100 text-blue-800"
+      case "contacted":
+        return "bg-yellow-100 text-yellow-800"
+      case "qualified":
+        return "bg-purple-100 text-purple-800"
+      case "converted":
+        return "bg-green-100 text-green-800"
+      case "lost":
+        return "bg-red-100 text-red-800"
+      default:
+        return "bg-gray-100 text-gray-800"
     }
   }
 
   const handleCreateBill = async () => {
-    await loadPatients()
-    setPatientSelectionModal(true)
+    try {
+      const users = await getAllUsers()
+      const patients = users.filter((user) => user.role === "patient")
+      setAllPatients(patients)
+      setPatientSelectionModal(true)
+    } catch (error) {
+      console.error("Error fetching patients:", error)
+      toast.error("Failed to load patients")
+    }
   }
 
   const handlePatientSelect = (patient: any) => {
@@ -347,20 +402,8 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
   const handleBillCreated = () => {
     setCreateBillModal(false)
     setSelectedPatient(null)
-    toast.success("Bill created successfully!")
-    // Refresh dashboard data
     fetchDashboardData()
-  }
-
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading user data...</p>
-        </div>
-      </div>
-    )
+    toast.success("Bill created successfully!")
   }
 
   if (isLoading) {
@@ -380,6 +423,7 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Welcome back, {user.first_name}</h1>
+            <p className="text-gray-600 mt-1">Here's what's happening with your patients today</p>
           </div>
           <Button
             variant="outline"
@@ -393,16 +437,17 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
           </Button>
         </div>
 
+        {/* Stats Cards - Above Tabs */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
           <Card>
             <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs sm:text-sm font-medium text-gray-600">Total Leads</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-gray-900">{stats.totalLeads}</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">Total Appointments</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-gray-900">{stats.totalAppointments}</p>
                 </div>
                 <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <User className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
+                  <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
                 </div>
               </div>
             </CardContent>
@@ -412,8 +457,8 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
             <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs sm:text-sm font-medium text-gray-600">New Leads</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-yellow-600">{stats.newLeads}</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">Pending</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-yellow-600">{stats.pendingAppointments}</p>
                 </div>
                 <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
                   <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-600" />
@@ -426,11 +471,11 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
             <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs sm:text-sm font-medium text-gray-600">Converted</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-green-600">{stats.convertedLeads}</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">Total Leads</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-purple-600">{stats.totalLeads}</p>
                 </div>
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                  <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
+                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                  <Users className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
                 </div>
               </div>
             </CardContent>
@@ -440,11 +485,11 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
             <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs sm:text-sm font-medium text-gray-600">Appointments</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-purple-600">{stats.assignedAppointments}</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">Outstanding</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-red-600">₹{stats.totalOutstanding.toFixed(2)}</p>
                 </div>
-                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                  <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                  <IndianRupee className="w-5 h-5 sm:w-6 sm:h-6 text-red-600" />
                 </div>
               </div>
             </CardContent>
@@ -460,9 +505,9 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
             <TabsTrigger value="appointments" className="flex items-center gap-2">
               <Calendar className="w-4 h-4" />
               <span className="hidden sm:inline">Appointments</span>
-              {stats.assignedAppointments > 0 && (
+              {stats.pendingAppointments > 0 && (
                 <Badge variant="secondary" className="ml-1 h-5 w-5 p-0 text-xs">
-                  {stats.assignedAppointments}
+                  {stats.pendingAppointments}
                 </Badge>
               )}
             </TabsTrigger>
@@ -473,11 +518,6 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
             <TabsTrigger value="leads" className="flex items-center gap-2">
               <User className="w-4 h-4" />
               <span className="hidden sm:inline">Leads</span>
-              {stats.newLeads > 0 && (
-                <Badge variant="secondary" className="ml-1 h-5 w-5 p-0 text-xs">
-                  {stats.newLeads}
-                </Badge>
-              )}
             </TabsTrigger>
           </TabsList>
 
@@ -505,17 +545,18 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
                         </div>
                       </Button>
 
-                      <Button
-                        variant="outline"
-                        className="h-16 sm:h-20 flex flex-col items-center justify-center space-y-1 sm:space-y-2 bg-transparent hover:bg-green-50 border-green-200 text-xs sm:text-sm"
-                        onClick={() => setActiveTab("patients")}
-                      >
-                        <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
-                        <div className="text-center">
-                          <div className="font-medium text-green-900">Patient Records</div>
-                          <div className="text-xs text-green-600 hidden sm:block">View patient information</div>
-                        </div>
-                      </Button>
+                      <Link href="/staff/patient-records" className="w-full">
+                        <Button
+                          variant="outline"
+                          className="h-16 sm:h-20 flex flex-col items-center justify-center space-y-1 sm:space-y-2 bg-transparent hover:bg-green-50 border-green-200 text-xs sm:text-sm w-full"
+                        >
+                          <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
+                          <div className="text-center">
+                            <div className="font-medium text-green-900">Patient Records</div>
+                            <div className="text-xs text-green-600 hidden sm:block">View patient information</div>
+                          </div>
+                        </Button>
+                      </Link>
 
                       <Button
                         variant="outline"
@@ -531,39 +572,76 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
 
                       <Button
                         variant="outline"
-                        className="h-16 sm:h-20 flex flex-col items-center justify-center space-y-1 sm:space-y-2 bg-transparent hover:bg-green-50 border-green-200 text-xs sm:text-sm"
+                        className="h-16 sm:h-20 flex flex-col items-center justify-center space-y-1 sm:space-y-2 bg-transparent hover:bg-blue-50 border-blue-200 text-xs sm:text-sm"
                         onClick={handleCreateBill}
                       >
-                        <Receipt className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
+                        <Receipt className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
                         <div className="text-center">
-                          <div className="font-medium text-green-900">Create Bill</div>
-                          <div className="text-xs text-green-600 hidden sm:block">Generate patient bill</div>
+                          <div className="font-medium text-blue-900">Create Bill</div>
+                          <div className="text-xs text-blue-600 hidden sm:block">Generate patient bills</div>
                         </div>
                       </Button>
-
-                      <Button
-                        variant="outline"
-                        className="h-16 sm:h-20 flex flex-col items-center justify-center space-y-1 sm:space-y-2 bg-transparent hover:bg-blue-50 border-blue-200 text-xs sm:text-sm"
-                      ></Button>
                     </div>
                   </CardContent>
                 </Card>
               </div>
 
-              <div>
+              <div className="space-y-6">
                 <Card>
                   <CardHeader>
                     <div className="flex items-center space-x-2">
-                      <User className="w-5 h-5" />
+                      <Calendar className="w-5 h-5" />
+                      <CardTitle>Recent Appointments</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {recentAppointments.length === 0 ? (
+                      <div className="text-center py-6">
+                        <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">No appointments yet</h3>
+                        <p className="text-gray-600 text-sm">Recent appointments will appear here</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {recentAppointments.map((appointment) => (
+                          <div key={appointment.id} className="border rounded-lg p-3">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-medium text-sm truncate">
+                                  {appointment.patient?.first_name} {appointment.patient?.last_name}
+                                </h4>
+                                <p className="text-xs text-gray-600 mt-1">{appointment.appointment_type}</p>
+                                <div className="flex items-center text-xs text-gray-500 mt-1">
+                                  <Calendar className="w-3 h-3 mr-1" />
+                                  {formatDate(appointment.appointment_date)}
+                                  <Clock className="w-3 h-3 ml-2 mr-1" />
+                                  {formatTime(appointment.appointment_time)}
+                                </div>
+                              </div>
+                              <Badge className={`${getStatusColor(appointment.status)} text-xs ml-2`}>
+                                {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
+                              </Badge>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center space-x-2">
+                      <Users className="w-5 h-5" />
                       <CardTitle>Recent Leads</CardTitle>
                     </div>
                   </CardHeader>
                   <CardContent>
                     {recentLeads.length === 0 ? (
                       <div className="text-center py-6">
-                        <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">No leads assigned</h3>
-                        <p className="text-gray-600 text-sm">Your assigned leads will appear here</p>
+                        <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">No leads yet</h3>
+                        <p className="text-gray-600 text-sm">Recent leads will appear here</p>
                       </div>
                     ) : (
                       <div className="space-y-4">
@@ -606,15 +684,17 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
                   </div>
                   <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
                     <Button
-                      onClick={fetchAppointments}
+                      onClick={handleRefreshAppointments}
                       variant="outline"
                       size="sm"
-                      disabled={loading}
+                      disabled={isRefreshing}
                       className="flex items-center gap-2 bg-transparent"
                     >
-                      <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+                      <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
                       Refresh
                     </Button>
+
+                    
 
                     <Button
                       onClick={() => setHighlightMyAppointments(!highlightMyAppointments)}
@@ -657,8 +737,8 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
                   <div className="space-y-4">
                     {filteredAppointments
                       .sort((a, b) => {
-                        const isAAssignedToMe = a.assigned_to === user.id
-                        const isBAAssignedToMe = b.assigned_to === user.id
+                        const isAAssignedToMe = a.staff_id === user.id || a.doctor_id === user.id
+                        const isBAAssignedToMe = b.staff_id === user.id || b.doctor_id === user.id
 
                         if (isAAssignedToMe && !isBAAssignedToMe) return -1
                         if (!isAAssignedToMe && isBAAssignedToMe) return 1
@@ -677,8 +757,11 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
                         return (
                           <div
                             key={appointment.id}
-                            className={`bg-white rounded-lg border p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow ${
-                              shouldHighlight ? "ring-2 ring-blue-500 bg-blue-50" : ""
+                            id={`appointment-${appointment.id}`}
+                            className={`p-4 border rounded-lg space-y-3 ${
+                              highlightId === appointment.id
+                                ? "ring-2 ring-blue-500 bg-blue-50 border-blue-300"
+                                : "bg-white"
                             }`}
                           >
                             {/* Mobile Layout */}
@@ -705,7 +788,7 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
                                   <div className="text-right">
                                     <Badge className={`${getPaymentStatusColor(payment.payment_status)} text-xs`}>
                                       {payment.payment_status === "fully_paid" && "Fully Paid"}
-                                      {payment.payment_status === "partial_paid" && "Not Paid"}
+                                      {payment.payment_status === "partial_paid" && "Partial Paid"}
                                       {payment.payment_status === "not_paid" && "Not Paid"}
                                     </Badge>
                                   </div>
@@ -1097,6 +1180,7 @@ export function StaffDashboard({ user }: StaffDashboardProps) {
           isOpen={walkInModal}
           onClose={() => setWalkInModal(false)}
           onAppointmentCreated={fetchDashboardData}
+          currentUserRole="staff"
         />
 
         <AppointmentAssignmentModal

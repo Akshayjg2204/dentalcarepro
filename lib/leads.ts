@@ -114,7 +114,7 @@ export async function getLeadsByAssignedUser(userId: string): Promise<Lead[]> {
           email
         )
       `)
-      .eq("assigned_to", userId)
+      .or(`assigned_staff.eq.${userId},assigned_doctor.eq.${userId}`)
       .order("created_at", { ascending: false })
 
     if (error) {

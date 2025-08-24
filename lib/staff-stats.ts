@@ -1,5 +1,30 @@
 import { supabase } from "./supabase"
 
+export async function getTotalOutstandingBalance(): Promise<number> {
+  try {
+    const { data: billingRecords, error } = await supabase
+      .from("billing_records")
+      .select("total_amount, amount_paid")
+      .neq("status", "paid")
+
+    if (error) {
+      console.error("Error fetching billing records:", error)
+      return 0
+    }
+
+    const outstandingBalance =
+      billingRecords?.reduce((total, record) => {
+        const outstanding = (record.total_amount || 0) - (record.amount_paid || 0)
+        return total + Math.max(0, outstanding)
+      }, 0) || 0
+
+    return outstandingBalance
+  } catch (error) {
+    console.error("Error calculating outstanding balance:", error)
+    return 0
+  }
+}
+
 export async function getStaffStats() {
   try {
     // Get today's appointments
@@ -42,11 +67,14 @@ export async function getStaffStats() {
 
     const tasksCount = completedAppointments?.length || 0
 
+    const outstandingBalance = await getTotalOutstandingBalance()
+
     return {
       todayAppointments: todayAppointments?.length || 0,
       pendingCalls: pendingAppointments?.length || 0,
       newPatients,
       tasks: tasksCount,
+      outstandingBalance,
     }
   } catch (error) {
     console.error("Error fetching staff stats:", error)
@@ -55,6 +83,7 @@ export async function getStaffStats() {
       pendingCalls: 0,
       newPatients: 0,
       tasks: 0,
+      outstandingBalance: 0,
     }
   }
 }

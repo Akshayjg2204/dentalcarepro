@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { X, CheckCircle, AlertTriangle, Wand2, AlertCircle, RefreshCw, Trash2 } from "lucide-react"
+import { CheckCircle, AlertTriangle, Wand2, AlertCircle, RefreshCw, Trash2 } from "lucide-react"
 import { createUser, cleanupOrphanedAuthUsers, checkAuthUserStatus, forceDeleteAuthUser } from "@/lib/auth"
 import { toast } from "sonner"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -20,9 +20,10 @@ interface CreateUserModalProps {
   isOpen: boolean
   onClose: () => void
   onUserCreated: () => void
+  currentUserRole?: "admin" | "doctor" | "staff" | "patient"
 }
 
-export function CreateUserModal({ isOpen, onClose, onUserCreated }: CreateUserModalProps) {
+export function CreateUserModal({ isOpen, onClose, onUserCreated, currentUserRole = "admin" }: CreateUserModalProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [autoGenerate, setAutoGenerate] = useState(true)
   const [isCheckingUniqueness, setIsCheckingUniqueness] = useState(false)
@@ -488,9 +489,7 @@ export function CreateUserModal({ isOpen, onClose, onUserCreated }: CreateUserMo
             onClick={handleClose}
             className="h-8 w-8 p-0"
             disabled={isLoading || isCheckingUniqueness}
-          >
-            
-          </Button>
+          ></Button>
         </DialogHeader>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -677,17 +676,24 @@ export function CreateUserModal({ isOpen, onClose, onUserCreated }: CreateUserMo
                     <Select
                       value={formData.role}
                       onValueChange={(value) => handleInputChange("role", value)}
-                      disabled={isLoading}
+                      disabled={isLoading || currentUserRole !== "admin"}
                     >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="patient">Patient</SelectItem>
-                        <SelectItem value="doctor">Doctor</SelectItem>
-                        <SelectItem value="staff">Staff</SelectItem>
+                        {currentUserRole === "admin" && (
+                          <>
+                            <SelectItem value="doctor">Doctor</SelectItem>
+                            <SelectItem value="staff">Staff</SelectItem>
+                          </>
+                        )}
                       </SelectContent>
                     </Select>
+                    {currentUserRole !== "admin" && (
+                      <p className="text-xs text-gray-500">You can only create patient accounts</p>
+                    )}
                   </div>
                 </div>
               </div>

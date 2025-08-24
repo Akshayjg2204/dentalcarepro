@@ -2,7 +2,6 @@ import { createClient } from "@supabase/supabase-js"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error("Missing required Supabase environment variables")
@@ -38,12 +37,10 @@ export const clearUserCache = () => {
   pendingRequests.clear()
 }
 
-// Request deduplication helper\
-export const deduplicateRequest = async <T>(key: string, requestFn: () => Promise<T>)
-: Promise<T> =>
-{
+// Request deduplication helper
+export const deduplicateRequest = async (key: string, requestFn: () => Promise<any>): Promise<any> => {
   if (pendingRequests.has(key)) {
-    return pendingRequests.get(key) as Promise<T>
+    return pendingRequests.get(key) as Promise<any>
   }
 
   const promise = requestFn().finally(() => {
@@ -134,27 +131,6 @@ export const getUser = async () => {
     return { data: null, error }
   }
 }
-
-// Service role client for admin operations (server-side only)
-export const supabaseAdmin = supabaseServiceRoleKey
-  ? createClient(supabaseUrl, supabaseServiceRoleKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-      global: {
-        headers: {
-          "x-application-name": "dental-clinic-app-admin",
-        },
-      },
-      db: {
-        schema: "public",
-      },
-    })
-  : null
-
-// Helper to check if admin client is available
-export const isAdminAvailable = () => !!supabaseAdmin
 
 // Clear all caches
 export const clearAllCaches = () => {

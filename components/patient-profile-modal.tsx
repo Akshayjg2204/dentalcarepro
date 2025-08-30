@@ -1187,25 +1187,42 @@ export function PatientProfileModal({
             </div>
           ) : profile ? (
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-              <TabsList className="grid w-full grid-cols-5 bg-gray-50">
-                <TabsTrigger value="profile" className="flex items-center space-x-2">
-                  <User className="w-4 h-4" />
-                  <span>Basic Information</span>
+              <TabsList className="flex w-full overflow-x-auto md:grid md:grid-cols-5 bg-gray-50 scrollbar-hide">
+                <TabsTrigger
+                  value="profile"
+                  className="flex items-center space-x-1 md:space-x-2 text-xs md:text-sm whitespace-nowrap flex-shrink-0 min-w-fit px-3 md:px-4"
+                >
+                  <User className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
+                  <span className="hidden sm:inline">Basic Information</span>
+                  <span className="sm:hidden">Info</span>
                 </TabsTrigger>
-                <TabsTrigger value="appointments" className="flex items-center space-x-2">
-                  <Calendar className="w-4 h-4" />
-                  <span>Appointments</span>
+                <TabsTrigger
+                  value="appointments"
+                  className="flex items-center space-x-1 md:space-x-2 text-xs md:text-sm whitespace-nowrap flex-shrink-0 min-w-fit px-3 md:px-4"
+                >
+                  <Calendar className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
+                  <span className="hidden sm:inline">Appointments</span>
+                  <span className="sm:hidden">Appts</span>
                 </TabsTrigger>
-                <TabsTrigger value="treatments" className="flex items-center space-x-2">
-                  <Activity className="w-4 h-4" />
+                <TabsTrigger
+                  value="treatments"
+                  className="flex items-center space-x-1 md:space-x-2 text-xs md:text-sm whitespace-nowrap flex-shrink-0 min-w-fit px-3 md:px-4"
+                >
+                  <Activity className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
                   <span>Treatment</span>
                 </TabsTrigger>
-                <TabsTrigger value="documents" className="flex items-center space-x-2">
-                  <FileText className="w-4 h-4" />
+                <TabsTrigger
+                  value="documents"
+                  className="flex items-center space-x-1 md:space-x-2 text-xs md:text-sm whitespace-nowrap flex-shrink-0 min-w-fit px-3 md:px-4"
+                >
+                  <FileText className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
                   <span>Documents</span>
                 </TabsTrigger>
-                <TabsTrigger value="billing" className="flex items-center space-x-2">
-                  <CreditCard className="w-4 h-4" />
+                <TabsTrigger
+                  value="billing"
+                  className="flex items-center space-x-1 md:space-x-2 text-xs md:text-sm whitespace-nowrap flex-shrink-0 min-w-fit px-3 md:px-4"
+                >
+                  <CreditCard className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
                   <span>Billing</span>
                 </TabsTrigger>
               </TabsList>
@@ -2239,32 +2256,44 @@ export function PatientProfileModal({
                         <span>Loading documents...</span>
                       </div>
                     ) : documents.length > 0 ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                      /* Improved document layout with proper spacing and truncation */
+                      <div className="space-y-3">
                         {documents.map((document) => (
-                          <div key={document.id} className="border rounded-lg p-3">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <h4 className="font-semibold">{document.file_name}</h4>
-                                <p className="text-sm text-gray-500">
+                          <div key={document.id} className="border rounded-lg p-4">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <h4
+                                  className="font-semibold text-sm sm:text-base truncate pr-2"
+                                  title={document.file_name}
+                                >
+                                  {document.file_name}
+                                </h4>
+                                <p className="text-xs sm:text-sm text-gray-500">
                                   Uploaded: {new Date(document.created_at).toLocaleDateString()}
                                 </p>
                               </div>
-                              <div className="flex items-center space-x-2">
+                              <div className="flex items-center gap-2 flex-shrink-0">
                                 {isImageFile(document.file_type) && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => handlePreviewImage(document)}
                                     disabled={loadingPreview.has(document.id)}
+                                    className="text-xs px-2 py-1 h-8"
                                   >
                                     {loadingPreview.has(document.id) ? (
-                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                      <Loader2 className="h-3 w-3 animate-spin" />
                                     ) : (
                                       "Preview"
                                     )}
                                   </Button>
                                 )}
-                                <Button variant="ghost" size="sm" onClick={() => handleDownloadDocument(document)}>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDownloadDocument(document)}
+                                  className="text-xs px-2 py-1 h-8"
+                                >
                                   Download
                                 </Button>
                                 <Button
@@ -2272,12 +2301,12 @@ export function PatientProfileModal({
                                   size="sm"
                                   onClick={() => handleDeleteDocument(document.id, document.file_name)}
                                   disabled={deletingDocuments.has(document.id)}
-                                  className="text-red-600 hover:text-red-700"
+                                  className="text-red-600 hover:text-red-700 text-xs px-2 py-1 h-8"
                                 >
                                   {deletingDocuments.has(document.id) ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    <Loader2 className="h-3 w-3 animate-spin" />
                                   ) : (
-                                    <Trash2 className="w-4 h-4" />
+                                    <Trash2 className="w-3 h-3" />
                                   )}
                                 </Button>
                               </div>

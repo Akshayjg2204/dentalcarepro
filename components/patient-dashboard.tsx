@@ -416,28 +416,35 @@ export function PatientDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 overflow-x-hidden">
       <div className="bg-white border-b">
         <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+          <div className="flex items-center justify-between gap-3 flex-nowrap">
+            <div className="flex items-center space-x-4 min-w-0">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => router.push("/")}
-                className="text-gray-600 hover:text-gray-900"
+                className="text-gray-600 hover:text-gray-900 shrink-0"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Back Home
+                <span className="hidden sm:inline">Back Home</span>
+                <span className="sr-only sm:not-sr-only sm:hidden">Back</span>
               </Button>
-              <div>
+              <div className="min-w-0">
                 <h1 className="text-2xl font-bold text-gray-900">Patient Dashboard</h1>
                 <p className="text-gray-600">Welcome back, {profile.first_name}</p>
               </div>
             </div>
-            <Button variant="ghost" size="sm" onClick={handleSignOut} className="text-gray-600 hover:text-gray-900">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSignOut}
+              className="text-gray-600 hover:text-gray-900 shrink-0"
+            >
               <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
+              <span className="hidden sm:inline">Sign Out</span>
+              <span className="sr-only sm:not-sr-only sm:hidden">Sign Out</span>
             </Button>
           </div>
         </div>
@@ -533,30 +540,36 @@ export function PatientDashboard() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
-            <TabsTrigger value="upcoming" className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-blue-600" />
-              Upcoming
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1 h-auto p-1">
+            <TabsTrigger value="upcoming" className="flex items-center gap-1 text-xs sm:text-sm px-2 py-2">
+              <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600" />
+              <span className="hidden sm:inline">Upcoming</span>
+              <span className="sm:hidden">Up</span>
             </TabsTrigger>
-            <TabsTrigger value="history" className="flex items-center gap-2">
-              <History className="h-4 w-4 text-green-600" />
-              History
+            <TabsTrigger value="history" className="flex items-center gap-1 text-xs sm:text-sm px-2 py-2">
+              <History className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" />
+              <span className="hidden sm:inline">History</span>
+              <span className="sm:hidden">Hist</span>
             </TabsTrigger>
-            <TabsTrigger value="treatments" className="flex items-center gap-2">
-              <Activity className="h-4 w-4 text-purple-600" />
-              Treatments
+            <TabsTrigger value="treatments" className="flex items-center gap-1 text-xs sm:text-sm px-2 py-2">
+              <Activity className="h-3 w-3 sm:h-4 sm:w-4 text-purple-600" />
+              <span className="hidden sm:inline">Treatments</span>
+              <span className="sm:hidden">Treat</span>
             </TabsTrigger>
-            <TabsTrigger value="payments" className="flex items-center gap-2">
-              <Receipt className="h-4 w-4 text-orange-600" />
-              Payments
+            <TabsTrigger value="payments" className="flex items-center gap-1 text-xs sm:text-sm px-2 py-2">
+              <Receipt className="h-3 w-3 sm:h-4 sm:w-4 text-orange-600" />
+              <span className="hidden sm:inline">Payments</span>
+              <span className="sm:hidden">Pay</span>
             </TabsTrigger>
-            <TabsTrigger value="documents" className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-indigo-600" />
-              Documents
+            <TabsTrigger value="documents" className="flex items-center gap-1 text-xs sm:text-sm px-2 py-2">
+              <FileText className="h-3 w-3 sm:h-4 sm:w-4 text-indigo-600" />
+              <span className="hidden sm:inline">Documents</span>
+              <span className="sm:hidden">Docs</span>
             </TabsTrigger>
-            <TabsTrigger value="profile" className="flex items-center gap-2">
-              <User className="h-4 w-4 text-pink-600" />
-              Profile
+            <TabsTrigger value="profile" className="flex items-center gap-1 text-xs sm:text-sm px-2 py-2">
+              <User className="h-3 w-3 sm:h-4 sm:w-4 text-pink-600" />
+              <span className="hidden sm:inline">Profile</span>
+              <span className="sm:hidden">Prof</span>
             </TabsTrigger>
           </TabsList>
 
@@ -570,10 +583,10 @@ export function PatientDashboard() {
                 <div className="space-y-4">
                   {upcomingAppointments.map((appointment) => (
                     <div key={appointment.id} className="p-4 border rounded-lg space-y-4">
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                         <div className="flex items-center space-x-4">
                           <Calendar className="h-5 w-5 text-blue-600" />
-                          <div>
+                          <div className="min-w-0">
                             <p className="font-medium">{appointment.appointment_type}</p>
                             <p className="text-sm text-gray-600">
                               {new Date(appointment.appointment_date).toLocaleDateString()} at{" "}
@@ -586,13 +599,16 @@ export function PatientDashboard() {
                             )}
                           </div>
                         </div>
-                        <Badge className={getStatusColor(appointment.status)}>{appointment.status}</Badge>
+                        <Badge className={`self-start sm:self-auto ${getStatusColor(appointment.status)}`}>
+                          {appointment.status}
+                        </Badge>
                       </div>
-                      <div className="flex gap-3 pt-2">
+                      {/* keep action buttons wrapping on mobile */}
+                      <div className="flex flex-col sm:flex-row gap-3 pt-2">
                         <Button
                           variant="outline"
                           size="sm"
-                          className="flex items-center gap-2 bg-transparent"
+                          className="flex items-center gap-2 bg-transparent w-full sm:w-auto"
                           onClick={() => {
                             // Open Google Maps with clinic address
                             window.open("https://maps.google.com/?q=dental+clinic+near+me", "_blank")
@@ -604,7 +620,7 @@ export function PatientDashboard() {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="flex items-center gap-2 bg-transparent"
+                          className="flex items-center gap-2 bg-transparent w-full sm:w-auto"
                           onClick={() => {
                             // Call clinic phone number
                             window.open("tel:+1234567890", "_self")
@@ -642,16 +658,19 @@ export function PatientDashboard() {
                 ) : (
                   <div className="space-y-4">
                     {pastAppointments.map((appointment) => (
-                      <div key={appointment.id} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div className="flex items-center space-x-4">
-                          <div className="flex items-center space-x-2">
+                      <div
+                        key={appointment.id}
+                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-lg"
+                      >
+                        <div className="flex items-start sm:items-center space-x-4 min-w-0">
+                          <div className="flex items-center space-x-2 shrink-0">
                             <Calendar className="h-4 w-4 text-gray-400" />
                             <span className="text-sm text-gray-600">
                               {new Date(appointment.appointment_date).toLocaleDateString()}
                             </span>
                           </div>
-                          <div>
-                            <p className="font-medium">{appointment.appointment_type}</p>
+                          <div className="min-w-0">
+                            <p className="font-medium break-words">{appointment.appointment_type}</p>
                             <p className="text-sm text-gray-600">
                               {new Date(appointment.appointment_date).toLocaleDateString()} at{" "}
                               {appointment.appointment_time}
@@ -664,7 +683,9 @@ export function PatientDashboard() {
                             {appointment.notes && <p className="text-sm text-gray-500 mt-1">{appointment.notes}</p>}
                           </div>
                         </div>
-                        <Badge className={getStatusColor(appointment.status)}>{appointment.status}</Badge>
+                        <Badge className={`self-start sm:self-auto ${getStatusColor(appointment.status)}`}>
+                          {appointment.status}
+                        </Badge>
                       </div>
                     ))}
                     {pastAppointments.length === 0 && (
@@ -699,9 +720,12 @@ export function PatientDashboard() {
                 ) : (
                   <div className="space-y-4">
                     {treatments.map((treatment) => (
-                      <div key={treatment.id} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div className="flex items-center space-x-4">
-                          <div className="flex items-center space-x-2">
+                      <div
+                        key={treatment.id}
+                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-lg"
+                      >
+                        <div className="flex items-center space-x-4 min-w-0">
+                          <div className="flex items-center space-x-2 shrink-0">
                             <Calendar className="h-4 w-4 text-gray-400" />
                             <span className="text-sm text-gray-600">
                               {treatment.treatment_date
@@ -709,9 +733,9 @@ export function PatientDashboard() {
                                 : new Date(treatment.created_at).toLocaleDateString()}
                             </span>
                           </div>
-                          <div>
+                          <div className="min-w-0">
                             <p className="font-medium">{treatment.treatment_name}</p>
-                            <div className="flex items-center space-x-4 text-sm text-gray-600">
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
                               <span>Cost: ₹{treatment.cost.toFixed(2)}</span>
                               {treatment.teeth_numbers && (
                                 <>
@@ -750,40 +774,44 @@ export function PatientDashboard() {
               <CardContent>
                 <div className="space-y-4">
                   {payments.map((payment) => (
-                    <div key={payment.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center space-x-4">
-                        <div className="flex items-center space-x-2">
-                          <Calendar className="h-4 w-4 text-gray-400" />
-                          <span className="text-sm text-gray-600">
-                            {new Date(payment.created_at).toLocaleDateString()}
-                          </span>
-                        </div>
-                        <div>
-                          <p className="font-medium">
-                            {payment.appointment?.appointment_type
-                              ? `${payment.appointment.appointment_type} Appointment`
-                              : (payment as any).description || "Custom Bill"}
-                          </p>
-                          <div className="flex items-center space-x-4 text-sm text-gray-600">
-                            <span>Total: ₹{(payment.bill_amount || 0).toFixed(2)}</span>
-                            <span>•</span>
-                            <span>Paid: ₹{(payment.paid_amount || 0).toFixed(2)}</span>
-                            <span>•</span>
-                            <span>
-                              Balance: ₹{((payment.bill_amount || 0) - (payment.paid_amount || 0)).toFixed(2)}
+                    <div key={payment.id} className="p-4 border rounded-lg">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div className="flex items-start space-x-3 min-w-0 flex-1">
+                          <div className="flex items-center space-x-2 flex-shrink-0">
+                            <Calendar className="h-4 w-4 text-gray-400" />
+                            <span className="text-sm text-gray-600">
+                              {new Date(payment.created_at).toLocaleDateString()}
                             </span>
                           </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium truncate">
+                              {payment.appointment?.appointment_type
+                                ? `${payment.appointment.appointment_type} Appointment`
+                                : (payment as any).description || "Custom Bill"}
+                            </p>
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
+                              <span>Total: ₹{(payment.bill_amount || 0).toFixed(2)}</span>
+                              <span className="hidden sm:inline">•</span>
+                              <span>Paid: ₹{(payment.paid_amount || 0).toFixed(2)}</span>
+                              <span className="hidden sm:inline">•</span>
+                              <span>
+                                Balance: ₹{((payment.bill_amount || 0) - (payment.paid_amount || 0)).toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex-shrink-0">
+                          <Badge className={getPaymentStatusColor(payment.payment_status)}>
+                            {payment.payment_status === "not_paid"
+                              ? "Pending"
+                              : payment.payment_status === "partial_paid"
+                                ? "Partial"
+                                : payment.payment_status === "fully_paid"
+                                  ? "Paid"
+                                  : payment.payment_status}
+                          </Badge>
                         </div>
                       </div>
-                      <Badge className={getPaymentStatusColor(payment.payment_status)}>
-                        {payment.payment_status === "not_paid"
-                          ? "Pending"
-                          : payment.payment_status === "partial_paid"
-                            ? "Partial"
-                            : payment.payment_status === "fully_paid"
-                              ? "Paid"
-                              : payment.payment_status}
-                      </Badge>
                     </div>
                   ))}
                   {payments.length === 0 && (
@@ -800,7 +828,7 @@ export function PatientDashboard() {
           <TabsContent value="documents" className="space-y-6">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div>
                     <CardTitle>Upload Documents</CardTitle>
                     <CardDescription>Upload and manage your medical documents</CardDescription>
@@ -838,12 +866,15 @@ export function PatientDashboard() {
                 ) : documents.length > 0 ? (
                   <div className="space-y-4">
                     {documents.map((document) => (
-                      <div key={document.id} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div className="flex items-center space-x-4">
+                      <div
+                        key={document.id}
+                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-lg"
+                      >
+                        <div className="flex items-center space-x-4 min-w-0">
                           <span className="text-2xl">{getFileIcon(document.mime_type)}</span>
-                          <div>
-                            <p className="font-medium">{document.file_name}</p>
-                            <div className="flex items-center gap-4 text-sm text-gray-600">
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">{document.file_name}</p>
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
                               <span>{formatFileSize(document.file_size)}</span>
                               <span>•</span>
                               <span>Uploaded {new Date(document.upload_date).toLocaleDateString()}</span>

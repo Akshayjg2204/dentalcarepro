@@ -241,22 +241,24 @@ export function PatientManagementSection({ currentUserId, currentUserRole }: Pat
               <CardTitle>Patient Management</CardTitle>
               <Badge variant="secondary">{patients.length} patients</Badge>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
               <Button
                 onClick={() => setIsCreatePatientModalOpen(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
+                className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto"
                 size="sm"
               >
                 <UserPlus className="w-4 h-4 mr-2" />
-                Create Patient
+                <span className="hidden xs:inline">Create Patient</span>
+                <span className="xs:hidden">Create</span>
               </Button>
               <Button
                 onClick={() => handleWalkInAppointment()}
-                className="bg-red-600 hover:bg-red-700 text-white"
+                className="bg-red-600 hover:bg-red-700 text-white w-full sm:w-auto"
                 size="sm"
               >
                 <Plus className="w-4 h-4 mr-2" />
-                Walk-in Appointment
+                <span className="hidden xs:inline">Walk-in Appointment</span>
+                <span className="xs:hidden">Walk-in</span>
               </Button>
             </div>
           </div>

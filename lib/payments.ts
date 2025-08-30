@@ -26,6 +26,7 @@ export interface Payment {
       phone?: string
     }
   }
+  description?: string
 }
 
 export interface PaymentStats {
@@ -466,27 +467,44 @@ export async function getPaymentStats(): Promise<PaymentStats> {
 
 export async function getPatientPayments(patientId: string): Promise<Payment[]> {
   try {
-    const { data, error } = await supabase
-      .from("payments")
-      .select(`
-        *,
-        appointment:appointments(
-          id,
-          appointment_date,
-          appointment_time,
-          appointment_type,
-          status
-        )
-      `)
-      .eq("patient_id", patientId)
-      .order("created_at", { ascending: false })
+    const [paymentsResult, customBillsResult] = await Promise.all([
+      // Fetch regular payments
+      supabase
+        .from("payments")
+        .select(`
+          *,
+          appointment:appointments(
+            id,
+            appointment_date,
+            appointment_time,
+            appointment_type,
+            status
+          )
+        `)
+        .eq("patient_id", patientId)
+        .order("created_at", { ascending: false }),
 
-    if (error) {
-      console.error("Error fetching patient payments:", error)
-      return []
+      // Fetch custom bills
+      supabase
+        .from("custom_bills")
+        .select("*")
+        .eq("patient_id", patientId)
+        .order("created_at", { ascending: false }),
+    ])
+
+    if (paymentsResult.error) {
+      console.error("Error fetching patient payments:", paymentsResult.error)
     }
 
-    return (data || []).map((payment) => ({
+    if (customBillsResult.error) {
+      console.error("Error fetching patient custom bills:", customBillsResult.error)
+    }
+
+    const payments = paymentsResult.data || []
+    const customBills = customBillsResult.data || []
+
+    // Map regular payments
+    const mappedPayments = payments.map((payment) => ({
       id: payment.id,
       appointment_id: payment.appointment_id,
       patient_id: payment.patient_id,
@@ -508,6 +526,42 @@ export async function getPatientPayments(patientId: string): Promise<Payment[]> 
           }
         : undefined,
     }))
+
+    // Map custom bills to payment format
+    const mappedCustomBills = customBills.map((bill) => {
+      // Determine payment status for custom bills
+      let paymentStatus: "not_paid" | "partial_paid" | "fully_paid"
+      const paidAmount = bill.paid_amount || 0
+      if (paidAmount === 0) {
+        paymentStatus = "not_paid"
+      } else if (paidAmount >= bill.bill_amount) {
+        paymentStatus = "fully_paid"
+      } else {
+        paymentStatus = "partial_paid"
+      }
+
+      return {
+        id: bill.id,
+        appointment_id: null, // Custom bills are not tied to appointments
+        patient_id: bill.patient_id,
+        bill_amount: bill.bill_amount,
+        paid_amount: bill.paid_amount || 0,
+        payment_status: paymentStatus,
+        payment_method: bill.payment_method,
+        payment_date: bill.bill_date,
+        notes: bill.notes,
+        created_at: bill.created_at,
+        updated_at: bill.updated_at,
+        appointment: undefined,
+        description: bill.bill_name, // Use bill_name as description for custom bills
+      }
+    })
+
+    // Combine and sort by creation date
+    const allPayments = [...mappedPayments, ...mappedCustomBills]
+    allPayments.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+
+    return allPayments
   } catch (error) {
     console.error("Error in getPatientPayments:", error)
     return []

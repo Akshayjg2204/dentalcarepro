@@ -33,7 +33,7 @@ export function TreatmentPlansModal({ isOpen, onClose, currentUserId, currentUse
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    default_price: 0,
+    default_cost: 0,
     duration_minutes: 30,
     category: "",
   })
@@ -81,7 +81,7 @@ export function TreatmentPlansModal({ isOpen, onClose, currentUserId, currentUse
     setFormData({
       name: "",
       description: "",
-      default_price: 0,
+      default_cost: 0,
       duration_minutes: 30,
       category: "",
     })
@@ -93,7 +93,7 @@ export function TreatmentPlansModal({ isOpen, onClose, currentUserId, currentUse
     setFormData({
       name: treatment.name,
       description: treatment.description || "",
-      default_price: treatment.default_price,
+      default_cost: treatment.default_cost,
       duration_minutes: treatment.duration_minutes,
       category: treatment.category || "",
     })
@@ -108,7 +108,7 @@ export function TreatmentPlansModal({ isOpen, onClose, currentUserId, currentUse
       return
     }
 
-    if (formData.default_price <= 0) {
+    if (formData.default_cost <= 0) {
       toast.error("Default price must be greater than 0")
       return
     }
@@ -121,7 +121,7 @@ export function TreatmentPlansModal({ isOpen, onClose, currentUserId, currentUse
         await updateTreatment(editingTreatment.id, {
           name: formData.name.trim(),
           description: formData.description.trim() || undefined,
-          default_price: formData.default_price,
+          default_cost: formData.default_cost,
           duration_minutes: formData.duration_minutes,
           category: formData.category.trim() || undefined,
         })
@@ -131,10 +131,9 @@ export function TreatmentPlansModal({ isOpen, onClose, currentUserId, currentUse
         await createTreatment({
           name: formData.name.trim(),
           description: formData.description.trim() || undefined,
-          default_price: formData.default_price,
+          default_cost: formData.default_cost,
           duration_minutes: formData.duration_minutes,
           category: formData.category.trim() || undefined,
-          is_active: true,
         })
         toast.success("Treatment created successfully!")
       }
@@ -308,7 +307,7 @@ export function TreatmentPlansModal({ isOpen, onClose, currentUserId, currentUse
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div className="flex items-center">
                           <IndianRupee className="w-4 h-4 text-green-600 mr-1" />
-                          <span className="font-medium">{formatCurrency(treatment.default_price || 0)}</span>
+                          <span className="font-medium">{formatCurrency(treatment.default_cost || 0)}</span>
                         </div>
                         <div className="flex items-center">
                           <Clock className="w-4 h-4 text-blue-600 mr-1" />
@@ -395,21 +394,21 @@ export function TreatmentPlansModal({ isOpen, onClose, currentUserId, currentUse
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="default_price">
+                      <Label htmlFor="default_cost">
                         Default Price (Rs) <span className="text-red-500">*</span>
                       </Label>
                       <div className="relative">
                         <IndianRupee className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                         <Input
-                          id="default_price"
+                          id="default_cost"
                           type="number"
                           step="0.01"
                           min="0"
-                          value={formData.default_price}
+                          value={formData.default_cost}
                           onChange={(e) =>
                             setFormData((prev) => ({
                               ...prev,
-                              default_price: Number.parseFloat(e.target.value) || 0,
+                              default_cost: Number.parseFloat(e.target.value) || 0,
                             }))
                           }
                           className="pl-10"

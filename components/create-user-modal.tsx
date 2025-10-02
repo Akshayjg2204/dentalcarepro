@@ -131,8 +131,12 @@ export function CreateUserModal({
           }
         }
 
-        console.log("Processed orphaned users:", orphanedList)
-        setOrphanedUsers(orphanedList || [])
+        const filteredOrphanedList = orphanedList.filter(
+          (user: { email: string }) => user.email !== "admin@dentalcare.com",
+        )
+
+        console.log("Processed orphaned users:", filteredOrphanedList)
+        setOrphanedUsers(filteredOrphanedList || [])
       }
     } catch (error) {
       console.error("Exception loading orphaned users:", error)

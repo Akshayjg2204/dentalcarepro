@@ -33,6 +33,10 @@ export interface BillingRecordWithPatient extends BillingRecord {
   amount_paid?: number // Added amount_paid field
   isCustomBill?: boolean // Added isCustomBill flag
   payment_status?: "pending" | "partial" | "paid" // Added payment_status field for consistency with UI
+  assigned_doctor?: string
+  assigned_staff?: string
+  doctor_name?: string
+  staff_name?: string
 }
 
 export interface AppointmentBill {
@@ -239,12 +243,13 @@ export async function getBillingRecords(
       isCustomBill: false, // Explicitly mark regular billing records as not custom bills
     }))
 
-    // Fetch custom bills with timestamp to force refresh
     const query = supabase
       .from("custom_bills")
       .select(`
         *,
-        patient:users!patient_id(first_name, last_name, email, phone)
+        patient:users!patient_id(first_name, last_name, email, phone),
+        doctor:users!assigned_doctor(first_name, last_name),
+        staff:users!assigned_staff(first_name, last_name)
       `)
       .eq("patient_id", patientId)
       .order("created_at", { ascending: false })
@@ -296,6 +301,10 @@ export async function getBillingRecords(
         amount_paid: bill.paid_amount,
         isCustomBill: true, // Added flag to identify custom bills
         payment_status: paidAmount >= billAmount ? "paid" : paidAmount > 0 ? "partial" : "pending",
+        assigned_doctor: bill.assigned_doctor || undefined,
+        assigned_staff: bill.assigned_staff || undefined,
+        doctor_name: bill.doctor ? `Dr. ${bill.doctor.first_name} ${bill.doctor.last_name}` : undefined,
+        staff_name: bill.staff ? `${bill.staff.first_name} ${bill.staff.last_name}` : undefined,
       }
     })
 

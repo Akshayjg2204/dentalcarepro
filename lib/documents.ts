@@ -275,9 +275,9 @@ export const uploadPatientDocument = async (
       throw new Error("No file provided")
     }
 
-    if (file.size > 1 * 1024 * 1024) {
-      // 1MB limit
-      throw new Error("File size exceeds 1MB limit")
+    if (file.size > 50 * 1024 * 1024) {
+      // 50MB limit
+      throw new Error("File size exceeds 50MB limit")
     }
 
     // Allowed file types

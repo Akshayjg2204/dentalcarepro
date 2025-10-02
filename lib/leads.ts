@@ -7,7 +7,7 @@ export interface Lead {
   email?: string
   phone: string
   source?: string
-  status: "new" | "contacted" | "qualified" | "converted" | "not_interested"
+  status: "ongoing" | "converted" | "not_converted"
   consultation_reason: string
   consultation_date?: string
   consultation_time?: string
@@ -178,7 +178,7 @@ export async function createLead(leadData: {
       last_name: leadData.last_name,
       phone: leadData.phone,
       consultation_reason: leadData.consultation_reason,
-      status: "new", // Default status matching updated database schema
+      status: "ongoing", // Default status matching updated database schema
     }
 
     // Add optional fields if provided
@@ -218,7 +218,7 @@ export async function createLead(leadData: {
 
 export async function updateLeadStatus(
   leadId: string,
-  status: "new" | "contacted" | "qualified" | "converted" | "not_interested",
+  status: "ongoing" | "converted" | "not_converted",
   notes?: string,
 ) {
   try {

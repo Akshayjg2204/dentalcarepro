@@ -7,10 +7,10 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
-import { Search, UserPlus, Phone, Calendar, Stethoscope, Users, UserCheck, Trash2, Edit, Eye, UserX } from 'lucide-react'
+import { Search, UserPlus, Phone, Calendar, Stethoscope, Users, UserCheck, Trash2, UserX } from "lucide-react"
 import { getAllLeads, updateLeadStatus, deleteLead, type Lead } from "@/lib/leads"
 import { CreateLeadModal } from "@/components/create-lead-modal"
-import { ConvertLeadModal } from "@/components/convert-lead-modal"
+import { CreateUserModal } from "@/components/create-user-modal"
 
 interface LeadsManagementProps {
   currentUserId: string
@@ -58,7 +58,7 @@ export function LeadsManagement({ currentUserId, currentUserRole }: LeadsManagem
           lead.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           lead.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           lead.phone.includes(searchTerm) ||
-          lead.consultation_reason.toLowerCase().includes(searchTerm.toLowerCase())
+          lead.consultation_reason.toLowerCase().includes(searchTerm.toLowerCase()),
       )
     }
 
@@ -73,7 +73,7 @@ export function LeadsManagement({ currentUserId, currentUserRole }: LeadsManagem
     setProcessingLeads((prev) => new Set(prev).add(leadId))
     try {
       await updateLeadStatus(leadId, newStatus)
-      toast.success(`Lead status updated to ${newStatus}`)
+      toast.success(`Lead marked as ${newStatus.replace("_", " ")}`)
       fetchLeads()
     } catch (error: any) {
       toast.error("Failed to update lead status: " + (error.message || "Unknown error"))
@@ -109,20 +109,27 @@ export function LeadsManagement({ currentUserId, currentUserRole }: LeadsManagem
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "pending":
-        return "bg-yellow-100 text-yellow-800"
-      case "in_consultation":
+      case "ongoing":
         return "bg-blue-100 text-blue-800"
-      case "completed":
-        return "bg-green-100 text-green-800"
       case "converted":
-        return "bg-purple-100 text-purple-800"
-      case "not_interested":
+        return "bg-green-100 text-green-800"
+      case "not_converted":
         return "bg-gray-100 text-gray-800"
-      case "cancelled":
-        return "bg-red-100 text-red-800"
       default:
         return "bg-gray-100 text-gray-800"
+    }
+  }
+
+  const getStatusDisplayName = (status: string) => {
+    switch (status) {
+      case "ongoing":
+        return "Ongoing"
+      case "converted":
+        return "Converted"
+      case "not_converted":
+        return "Not Interested"
+      default:
+        return status
     }
   }
 
@@ -140,6 +147,52 @@ export function LeadsManagement({ currentUserId, currentUserRole }: LeadsManagem
       minute: "2-digit",
       hour12: true,
     })
+  }
+
+  const renderActionButtons = (lead: Lead) => {
+    const isProcessing = processingLeads.has(lead.id)
+
+    if (lead.status === "ongoing") {
+      return (
+        <div className="flex gap-2 flex-wrap">
+          <Button
+            size="sm"
+            onClick={() => setConvertModalLead(lead)}
+            disabled={isProcessing}
+            className="bg-green-600 hover:bg-green-700 text-white"
+          >
+            <UserCheck className="w-4 h-4 mr-1" />
+            Convert to Patient
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleStatusUpdate(lead.id, "not_converted")}
+            disabled={isProcessing}
+            className="border-gray-600 text-gray-600 hover:bg-gray-50"
+          >
+            <UserX className="w-4 h-4 mr-1" />
+            Not Interested
+          </Button>
+        </div>
+      )
+    }
+
+    // For converted and not_converted, just show the status badge
+    return <Badge className={getStatusColor(lead.status)}>{getStatusDisplayName(lead.status)}</Badge>
+  }
+
+  const handleUserCreatedFromLead = async () => {
+    if (convertModalLead) {
+      // Update the lead status to converted
+      try {
+        await updateLeadStatus(convertModalLead.id, "converted")
+        toast.success("Lead successfully converted to patient!")
+        fetchLeads()
+      } catch (error: any) {
+        toast.error("User created but failed to update lead status: " + (error.message || "Unknown error"))
+      }
+    }
   }
 
   if (isLoading) {
@@ -188,12 +241,9 @@ export function LeadsManagement({ currentUserId, currentUserRole }: LeadsManagem
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="in_consultation">In Consultation</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="ongoing">Ongoing</SelectItem>
               <SelectItem value="converted">Converted</SelectItem>
-              <SelectItem value="not_interested">Not Interested</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
+              <SelectItem value="not_converted">Not Interested</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -215,20 +265,111 @@ export function LeadsManagement({ currentUserId, currentUserRole }: LeadsManagem
           <div className="space-y-4">
             {filteredLeads
               .sort((a, b) => {
-                const statusOrder = { pending: 0, in_consultation: 1, completed: 2, converted: 3, not_interested: 4, cancelled: 5 }
-                const aOrder = statusOrder[a.status] ?? 6
-                const bOrder = statusOrder[b.status] ?? 6
+                const statusOrder = { ongoing: 0, converted: 1, not_converted: 2 }
+                const aOrder = statusOrder[a.status] ?? 3
+                const bOrder = statusOrder[b.status] ?? 3
                 if (aOrder !== bOrder) return aOrder - bOrder
                 return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
               })
               .map((lead) => (
-                <div key={lead.id} className="p-3 sm:p-4 border rounded-lg">
+                <div key={lead.id} className="p-4 border rounded-lg hover:shadow-md transition-shadow">
+                  {/* Desktop Layout */}
+                  <div className="hidden sm:grid sm:grid-cols-12 sm:gap-4 sm:items-start">
+                    {/* Lead Info - 4 columns */}
+                    <div className="col-span-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <h3 className="font-semibold text-base">
+                            {lead.first_name} {lead.last_name}
+                          </h3>
+                          <div className="flex items-center text-sm text-gray-600 mt-1">
+                            <Phone className="w-3 h-3 mr-1" />
+                            <span>{lead.phone}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="bg-gray-50 p-2 rounded text-xs mt-2">
+                        <p className="font-medium text-gray-700">Reason:</p>
+                        <p className="text-gray-600 line-clamp-2">{lead.consultation_reason}</p>
+                      </div>
+                    </div>
+
+                    {/* Assignments - 3 columns */}
+                    <div className="col-span-3 space-y-2">
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">Doctor</p>
+                        {lead.assigned_doctor_user ? (
+                          <div className="flex items-center text-sm text-green-600">
+                            <Stethoscope className="w-4 h-4 mr-1" />
+                            <span className="truncate">
+                              Dr. {lead.assigned_doctor_user.first_name} {lead.assigned_doctor_user.last_name}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 text-sm">Not assigned</span>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">Staff</p>
+                        {lead.assigned_staff_user ? (
+                          <div className="flex items-center text-sm text-blue-600">
+                            <Users className="w-4 h-4 mr-1" />
+                            <span className="truncate">
+                              {lead.assigned_staff_user.first_name} {lead.assigned_staff_user.last_name}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 text-sm">Not assigned</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Consultation Date - 2 columns */}
+                    <div className="col-span-2">
+                      <p className="text-xs text-gray-500 mb-1">Consultation</p>
+                      {lead.consultation_date ? (
+                        <div className="text-sm">
+                          <div className="flex items-center text-gray-700">
+                            <Calendar className="w-3 h-3 mr-1" />
+                            <span>{formatDate(lead.consultation_date)}</span>
+                          </div>
+                          {lead.consultation_time && (
+                            <p className="text-gray-600 ml-4">{formatTime(lead.consultation_time)}</p>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 text-sm">Not scheduled</span>
+                      )}
+                    </div>
+
+                    {/* Actions - 3 columns */}
+                    <div className="col-span-3 flex flex-col items-end gap-2">
+                      {renderActionButtons(lead)}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleDeleteLead(lead.id)}
+                        disabled={deletingLeads.has(lead.id)}
+                        className="border-red-600 text-red-600 hover:bg-red-50 w-full"
+                      >
+                        {deletingLeads.has(lead.id) ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
+                        ) : (
+                          <>
+                            <Trash2 className="w-4 h-4 mr-1" />
+                            Delete
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+
                   {/* Mobile Layout */}
                   <div className="block sm:hidden space-y-3">
                     {/* Header with name and status */}
                     <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-base truncate">
+                        <h3 className="font-semibold text-base truncate">
                           {lead.first_name} {lead.last_name}
                         </h3>
                         <div className="flex items-center text-sm text-gray-600 mt-1">
@@ -237,7 +378,7 @@ export function LeadsManagement({ currentUserId, currentUserRole }: LeadsManagem
                         </div>
                       </div>
                       <Badge className={`${getStatusColor(lead.status)} text-xs ml-2 flex-shrink-0`}>
-                        {lead.status.replace('_', ' ').charAt(0).toUpperCase() + lead.status.replace('_', ' ').slice(1)}
+                        {getStatusDisplayName(lead.status)}
                       </Badge>
                     </div>
 
@@ -254,10 +395,12 @@ export function LeadsManagement({ currentUserId, currentUserRole }: LeadsManagem
                         {lead.assigned_doctor_user ? (
                           <div className="flex items-center text-green-600 text-xs">
                             <Stethoscope className="w-3 h-3 mr-1" />
-                            <span>Dr. {lead.assigned_doctor_user.first_name} {lead.assigned_doctor_user.last_name}</span>
+                            <span>
+                              Dr. {lead.assigned_doctor_user.first_name} {lead.assigned_doctor_user.last_name}
+                            </span>
                           </div>
                         ) : (
-                          <span className="text-gray-500 text-xs">Not assigned</span>
+                          <span className="text-gray-400 text-xs">Not assigned</span>
                         )}
                       </div>
                       <div className="flex items-center justify-between">
@@ -265,201 +408,44 @@ export function LeadsManagement({ currentUserId, currentUserRole }: LeadsManagem
                         {lead.assigned_staff_user ? (
                           <div className="flex items-center text-blue-600 text-xs">
                             <Users className="w-3 h-3 mr-1" />
-                            <span>{lead.assigned_staff_user.first_name} {lead.assigned_staff_user.last_name}</span>
+                            <span>
+                              {lead.assigned_staff_user.first_name} {lead.assigned_staff_user.last_name}
+                            </span>
                           </div>
                         ) : (
-                          <span className="text-gray-500 text-xs">Not assigned</span>
+                          <span className="text-gray-400 text-xs">Not assigned</span>
                         )}
                       </div>
                     </div>
 
                     {/* Date */}
-                    <div className="text-right">
-                      {lead.consultation_date && (
-                        <div className="flex items-center justify-end text-xs text-gray-600">
-                          <Calendar className="w-3 h-3 mr-1" />
-                          <span>{formatDate(lead.consultation_date)}</span>
-                          {lead.consultation_time && <span className="ml-1">{formatTime(lead.consultation_time)}</span>}
-                        </div>
-                      )}
-                    </div>
+                    {lead.consultation_date && (
+                      <div className="flex items-center text-xs text-gray-600">
+                        <Calendar className="w-3 h-3 mr-1" />
+                        <span>{formatDate(lead.consultation_date)}</span>
+                        {lead.consultation_time && <span className="ml-1">{formatTime(lead.consultation_time)}</span>}
+                      </div>
+                    )}
 
                     {/* Action Buttons */}
-                    <div className="flex flex-wrap gap-2">
-                      {lead.status === "pending" && (
-                        <Button
-                          size="sm"
-                          onClick={() => handleStatusUpdate(lead.id, "in_consultation")}
-                          disabled={processingLeads.has(lead.id)}
-                          className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1 h-7"
-                        >
-                          Start Consultation
-                        </Button>
-                      )}
-                      {lead.status === "in_consultation" && (
-                        <Button
-                          size="sm"
-                          onClick={() => handleStatusUpdate(lead.id, "completed")}
-                          disabled={processingLeads.has(lead.id)}
-                          className="bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1 h-7"
-                        >
-                          Complete
-                        </Button>
-                      )}
-                      {lead.status === "completed" && (
-                        <>
-                          <Button
-                            size="sm"
-                            onClick={() => setConvertModalLead(lead)}
-                            className="bg-purple-600 hover:bg-purple-700 text-white text-xs px-3 py-1 h-7"
-                          >
-                            <UserCheck className="w-3 h-3 mr-1" />
-                            Convert
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleStatusUpdate(lead.id, "not_interested")}
-                            disabled={processingLeads.has(lead.id)}
-                            className="border-gray-600 text-gray-600 hover:bg-gray-50 text-xs px-3 py-1 h-7"
-                          >
-                            <UserX className="w-3 h-3 mr-1" />
-                            Not Interested
-                          </Button>
-                        </>
-                      )}
+                    <div className="flex flex-col gap-2">
+                      {renderActionButtons(lead)}
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => handleDeleteLead(lead.id)}
                         disabled={deletingLeads.has(lead.id)}
-                        className="border-red-600 text-red-600 hover:bg-red-50 text-xs px-2 py-1 h-7"
+                        className="border-red-600 text-red-600 hover:bg-red-50 text-xs"
                       >
                         {deletingLeads.has(lead.id) ? (
                           <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-600"></div>
                         ) : (
-                          <Trash2 className="w-3 h-3" />
+                          <>
+                            <Trash2 className="w-3 h-3 mr-1" />
+                            Delete Lead
+                          </>
                         )}
                       </Button>
-                    </div>
-                  </div>
-
-                  {/* Desktop Layout */}
-                  <div className="hidden sm:flex sm:items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-                        <div className="flex-1">
-                          <h3 className="font-medium text-base">
-                            {lead.first_name} {lead.last_name}
-                          </h3>
-                          <div className="flex items-center text-sm text-gray-600 mt-1">
-                            <Phone className="w-4 h-4 mr-1" />
-                            <span>{lead.phone}</span>
-                          </div>
-                        </div>
-                        <div className="text-left sm:text-center">
-                          <p className="text-xs text-gray-500 mb-1">Doctor</p>
-                          {lead.assigned_doctor_user ? (
-                            <div className="flex items-center text-sm text-green-600">
-                              <Stethoscope className="w-4 h-4 mr-1" />
-                              <span>Dr. {lead.assigned_doctor_user.first_name} {lead.assigned_doctor_user.last_name}</span>
-                            </div>
-                          ) : (
-                            <span className="text-gray-500 text-sm">Not assigned</span>
-                          )}
-                        </div>
-                        <div className="text-left sm:text-center">
-                          <p className="text-xs text-gray-500 mb-1">Staff</p>
-                          {lead.assigned_staff_user ? (
-                            <div className="flex items-center text-sm text-blue-600">
-                              <Users className="w-4 h-4 mr-1" />
-                              <span>{lead.assigned_staff_user.first_name} {lead.assigned_staff_user.last_name}</span>
-                            </div>
-                          ) : (
-                            <span className="text-gray-500 text-sm">Not assigned</span>
-                          )}
-                        </div>
-                        <div className="text-left sm:text-center">
-                          <p className="text-xs text-gray-500 mb-1">Consultation</p>
-                          {lead.consultation_date ? (
-                            <div className="text-sm">
-                              <p className="font-medium">{formatDate(lead.consultation_date)}</p>
-                              {lead.consultation_time && (
-                                <p className="text-gray-600">{formatTime(lead.consultation_time)}</p>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-gray-500 text-sm">Not scheduled</span>
-                          )}
-                        </div>
-                        <div className="max-w-full sm:max-w-xs">
-                          <p className="text-sm text-gray-600">
-                            <strong>Reason:</strong> {lead.consultation_reason}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex flex-row sm:flex-col items-center gap-2 sm:gap-3">
-                      {lead.status === "pending" && (
-                        <Button
-                          size="sm"
-                          onClick={() => handleStatusUpdate(lead.id, "in_consultation")}
-                          disabled={processingLeads.has(lead.id)}
-                          className="bg-blue-600 hover:bg-blue-700 text-white"
-                        >
-                          Start Consultation
-                        </Button>
-                      )}
-                      {lead.status === "in_consultation" && (
-                        <Button
-                          size="sm"
-                          onClick={() => handleStatusUpdate(lead.id, "completed")}
-                          disabled={processingLeads.has(lead.id)}
-                          className="bg-green-600 hover:bg-green-700 text-white"
-                        >
-                          Complete
-                        </Button>
-                      )}
-                      {lead.status === "completed" && (
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => setConvertModalLead(lead)}
-                            className="bg-purple-600 hover:bg-purple-700 text-white"
-                          >
-                            <UserCheck className="w-4 h-4 mr-1" />
-                            Convert
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleStatusUpdate(lead.id, "not_interested")}
-                            disabled={processingLeads.has(lead.id)}
-                            className="border-gray-600 text-gray-600 hover:bg-gray-50"
-                          >
-                            <UserX className="w-4 h-4 mr-1" />
-                            Not Interested
-                          </Button>
-                        </div>
-                      )}
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleDeleteLead(lead.id)}
-                          disabled={deletingLeads.has(lead.id)}
-                          className="border-red-600 text-red-600 hover:bg-red-50"
-                        >
-                          {deletingLeads.has(lead.id) ? (
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
-                          ) : (
-                            <Trash2 className="w-4 h-4" />
-                          )}
-                        </Button>
-                        <Badge className={getStatusColor(lead.status)}>
-                          {lead.status.replace('_', ' ').charAt(0).toUpperCase() + lead.status.replace('_', ' ').slice(1)}
-                        </Badge>
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -473,14 +459,13 @@ export function LeadsManagement({ currentUserId, currentUserRole }: LeadsManagem
         onClose={() => setIsCreateModalOpen(false)}
         onLeadCreated={fetchLeads}
       />
-      <ConvertLeadModal
+      <CreateUserModal
         isOpen={!!convertModalLead}
         onClose={() => setConvertModalLead(null)}
-        lead={convertModalLead}
-        onLeadConverted={() => {
-          fetchLeads()
-          setConvertModalLead(null)
-        }}
+        onUserCreated={handleUserCreatedFromLead}
+        currentUserRole={currentUserRole as "admin" | "doctor" | "staff" | "patient"}
+        initialFirstName={convertModalLead?.first_name || ""}
+        initialLastName={convertModalLead?.last_name || ""}
       />
     </Card>
   )

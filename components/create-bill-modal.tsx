@@ -133,157 +133,147 @@ export function CreateBillModal({ isOpen, onClose, patientId, patientName, onBil
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg max-h-[90vh] flex flex-col">
-        <DialogHeader className="flex-shrink-0">
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
           <DialogTitle className="flex items-center">
             <Receipt className="w-5 h-5 mr-2 text-green-600" />
             Create New Custom Bill
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Patient Info */}
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Patient</p>
-                    <p className="font-medium">{patientName}</p>
-                  </div>
-                  <Badge className={`text-xs ${getStatusColor(currentStatus)}`}>
-                    {getStatusIcon(currentStatus)}
-                    <span className="ml-1">
-                      {currentStatus === "fully_paid" && "Fully Paid"}
-                      {currentStatus === "partial_paid" && "Partial Payment"}
-                      {currentStatus === "not_paid" && "Not Paid"}
-                    </span>
-                  </Badge>
-                </div>
-
-                {formData.bill_amount > 0 && (
-                  <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t text-sm">
-                    <div>
-                      <p className="text-gray-600">Bill Amount</p>
-                      <p className="font-semibold text-lg">{formatCurrency(formData.bill_amount)}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600">Outstanding</p>
-                      <p
-                        className={`font-semibold text-lg ${outstandingAmount > 0 ? "text-red-600" : "text-green-600"}`}
-                      >
-                        {formatCurrency(outstandingAmount)}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Bill Form */}
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="bill_description">
-                  Bill Description <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="bill_description"
-                  value={formData.bill_description}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, bill_description: e.target.value }))}
-                  placeholder="e.g., Dental Cleaning, Root Canal Treatment, Consultation Fee"
-                />
-                {errors.bill_description && <p className="text-sm text-red-600 mt-1">{errors.bill_description}</p>}
-              </div>
-
-              <div>
-                <Label htmlFor="bill_amount">
-                  Bill Amount <span className="text-red-500">*</span>
-                </Label>
-                <div className="relative">
-                  <IndianRupee className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <Input
-                    id="bill_amount"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formData.bill_amount}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, bill_amount: Number.parseFloat(e.target.value) || 0 }))
-                    }
-                    className="pl-10"
-                    placeholder="0.00"
-                  />
-                </div>
-                {errors.bill_amount && <p className="text-sm text-red-600 mt-1">{errors.bill_amount}</p>}
-              </div>
-
-              <div>
-                <Label htmlFor="initial_payment">Initial Payment (Optional)</Label>
-                <div className="relative">
-                  <IndianRupee className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <Input
-                    id="initial_payment"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max={formData.bill_amount}
-                    value={formData.initial_payment}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, initial_payment: Number.parseFloat(e.target.value) || 0 }))
-                    }
-                    className="pl-10"
-                    placeholder="0.00"
-                  />
-                </div>
-                {errors.initial_payment && <p className="text-sm text-red-600 mt-1">{errors.initial_payment}</p>}
-                <p className="text-xs text-gray-500 mt-1">Leave as 0 if no payment is made now</p>
-              </div>
-
-              {formData.initial_payment > 0 && (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Patient Info */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
                 <div>
-                  <Label htmlFor="payment_method">Payment Method</Label>
-                  <Select
-                    value={formData.payment_method}
-                    onValueChange={(value) => setFormData((prev) => ({ ...prev, payment_method: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select payment method" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="cash">Cash</SelectItem>
-                      <SelectItem value="card">Card</SelectItem>
-                      <SelectItem value="upi">UPI</SelectItem>
-                      <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                      <SelectItem value="cheque">Cheque</SelectItem>
-                      <SelectItem value="insurance">Insurance</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <p className="text-sm text-gray-600">Patient</p>
+                  <p className="font-medium">{patientName}</p>
+                </div>
+                <Badge className={`text-xs ${getStatusColor(currentStatus)}`}>
+                  {getStatusIcon(currentStatus)}
+                  <span className="ml-1">
+                    {currentStatus === "fully_paid" && "Fully Paid"}
+                    {currentStatus === "partial_paid" && "Partial Payment"}
+                    {currentStatus === "not_paid" && "Not Paid"}
+                  </span>
+                </Badge>
+              </div>
+
+              {formData.bill_amount > 0 && (
+                <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t text-sm">
+                  <div>
+                    <p className="text-gray-600">Bill Amount</p>
+                    <p className="font-semibold text-lg">{formatCurrency(formData.bill_amount)}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">Outstanding</p>
+                    <p className={`font-semibold text-lg ${outstandingAmount > 0 ? "text-red-600" : "text-green-600"}`}>
+                      {formatCurrency(outstandingAmount)}
+                    </p>
+                  </div>
                 </div>
               )}
+            </CardContent>
+          </Card>
 
-              <div>
-                <Label htmlFor="notes">Notes (Optional)</Label>
-                <Textarea
-                  id="notes"
-                  value={formData.notes}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
-                  placeholder="Add any additional notes about this custom bill..."
-                  rows={3}
+          {/* Bill Form */}
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="bill_description">
+                Bill Description <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="bill_description"
+                value={formData.bill_description}
+                onChange={(e) => setFormData((prev) => ({ ...prev, bill_description: e.target.value }))}
+                placeholder="e.g., Dental Cleaning, Root Canal Treatment, Consultation Fee"
+              />
+              {errors.bill_description && <p className="text-sm text-red-600 mt-1">{errors.bill_description}</p>}
+            </div>
+
+            <div>
+              <Label htmlFor="bill_amount">
+                Bill Amount <span className="text-red-500">*</span>
+              </Label>
+              <div className="relative">
+                <IndianRupee className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  id="bill_amount"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formData.bill_amount}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, bill_amount: Number.parseFloat(e.target.value) || 0 }))
+                  }
+                  className="pl-10"
+                  placeholder="0.00"
                 />
               </div>
+              {errors.bill_amount && <p className="text-sm text-red-600 mt-1">{errors.bill_amount}</p>}
             </div>
-          </form>
-        </div>
 
-        <div className="flex-shrink-0 border-t pt-4 mt-4">
-          <div className="flex space-x-3">
-            <Button
-              type="submit"
-              disabled={isSubmitting}
-              className="flex-1 bg-green-600 hover:bg-green-700"
-              onClick={handleSubmit}
-            >
+            <div>
+              <Label htmlFor="initial_payment">Initial Payment (Optional)</Label>
+              <div className="relative">
+                <IndianRupee className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  id="initial_payment"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max={formData.bill_amount}
+                  value={formData.initial_payment}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, initial_payment: Number.parseFloat(e.target.value) || 0 }))
+                  }
+                  className="pl-10"
+                  placeholder="0.00"
+                />
+              </div>
+              {errors.initial_payment && <p className="text-sm text-red-600 mt-1">{errors.initial_payment}</p>}
+              <p className="text-xs text-gray-500 mt-1">Leave as 0 if no payment is made now</p>
+            </div>
+
+            {formData.initial_payment > 0 && (
+              <div>
+                <Label htmlFor="payment_method">Payment Method</Label>
+                <Select
+                  value={formData.payment_method}
+                  onValueChange={(value) => setFormData((prev) => ({ ...prev, payment_method: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select payment method" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">Cash</SelectItem>
+                    <SelectItem value="card">Card</SelectItem>
+                    <SelectItem value="upi">UPI</SelectItem>
+                    <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                    <SelectItem value="cheque">Cheque</SelectItem>
+                    <SelectItem value="insurance">Insurance</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <div>
+              <Label htmlFor="notes">Notes (Optional)</Label>
+              <Textarea
+                id="notes"
+                value={formData.notes}
+                onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
+                placeholder="Add any additional notes about this custom bill..."
+                rows={3}
+              />
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex space-x-3 pt-4">
+            <Button type="submit" disabled={isSubmitting} className="flex-1 bg-green-600 hover:bg-green-700">
               {isSubmitting ? (
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
               ) : (
@@ -295,7 +285,7 @@ export function CreateBillModal({ isOpen, onClose, patientId, patientName, onBil
               Cancel
             </Button>
           </div>
-        </div>
+        </form>
       </DialogContent>
     </Dialog>
   )

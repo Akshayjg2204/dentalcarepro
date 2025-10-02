@@ -8,7 +8,8 @@ export interface CustomBill {
   bill_amount: number
   paid_amount: number
   payment_method?: string
-  assigned_to?: string
+  assigned_doctor?: string
+  assigned_staff?: string
   notes?: string
   created_by: string
   created_at: string
@@ -22,7 +23,8 @@ export interface CreateCustomBillData {
   bill_amount: number
   paid_amount: number
   payment_method?: string | null
-  assigned_to?: string | null
+  assigned_doctor?: string | null
+  assigned_staff?: string | null
   notes?: string | null
   created_by: string
 }
@@ -59,6 +61,8 @@ export async function updateCustomBillPayment(
     paid_amount?: number
     payment_method?: string
     notes?: string
+    assigned_doctor?: string
+    assigned_staff?: string
   },
 ): Promise<CustomBill> {
   console.log("[v0] updateCustomBillPayment called with:", { billId, updates })

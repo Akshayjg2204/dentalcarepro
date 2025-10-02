@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { PatientProfileModal } from "@/components/patient-profile-modal"
 import { getAllPatientRecords, type PatientRecord } from "@/lib/patient-records"
 import { toast } from "sonner"
+import { supabase } from "@/lib/supabase-client"
 
 interface PatientRecordsSectionProps {
   currentUserId: string
@@ -24,8 +25,9 @@ export function PatientRecordsSection({ currentUserId, currentUserRole }: Patien
   const [selectedPatient, setSelectedPatient] = useState<string | null>(null)
   const [stats, setStats] = useState({
     totalPatients: 0,
-    withConditions: 0,
-    withAllergies: 0,
+    completedTreatments: 0,
+    ongoingTreatments: 0,
+    opdNotConvertedTreatments: 0,
   })
 
   useEffect(() => {
@@ -42,15 +44,38 @@ export function PatientRecordsSection({ currentUserId, currentUserRole }: Patien
       const patientsData = await getAllPatientRecords()
       setPatients(patientsData)
 
-      // Calculate stats
       const totalPatients = patientsData.length
-      const withConditions = patientsData.filter((p) => p.medical_conditions && p.medical_conditions.trim()).length
-      const withAllergies = patientsData.filter((p) => p.allergies && p.allergies.trim()).length
+
+      const timestamp = Date.now()
+      const { data: treatmentsData, error: treatmentsError } = await supabase
+        .from("patient_treatments")
+        .select("status")
+        .limit(10000) // Force query execution
+
+      if (treatmentsError) {
+        console.error("Error fetching treatments:", treatmentsError)
+        toast.error("Failed to load treatment statistics")
+        return
+      }
+
+      const allTreatments = treatmentsData || []
+      const completedTreatments = allTreatments.filter((t) => t.status === "completed").length
+      const ongoingTreatments = allTreatments.filter((t) => t.status === "ongoing").length
+      const opdNotConvertedTreatments = allTreatments.filter((t) => t.status === "opd_not_converted").length
+
+      console.log("[v0] Fresh treatment stats:", {
+        total: allTreatments.length,
+        completed: completedTreatments,
+        ongoing: ongoingTreatments,
+        opdNotConverted: opdNotConvertedTreatments,
+        timestamp,
+      })
 
       setStats({
         totalPatients,
-        withConditions,
-        withAllergies,
+        completedTreatments,
+        ongoingTreatments,
+        opdNotConvertedTreatments,
       })
     } catch (error: any) {
       console.error("Failed to fetch patients:", error)
@@ -63,7 +88,6 @@ export function PatientRecordsSection({ currentUserId, currentUserRole }: Patien
   const filterAndSortPatients = () => {
     let filtered = [...patients]
 
-    // Apply search filter
     if (searchTerm) {
       filtered = filtered.filter(
         (patient) =>
@@ -74,7 +98,6 @@ export function PatientRecordsSection({ currentUserId, currentUserRole }: Patien
       )
     }
 
-    // Apply sorting
     filtered.sort((a, b) => {
       switch (sortBy) {
         case "name":
@@ -104,6 +127,7 @@ export function PatientRecordsSection({ currentUserId, currentUserRole }: Patien
   }
 
   const handlePatientUpdated = () => {
+    console.log("[v0] Patient updated, refreshing stats...")
     fetchPatients()
     setSelectedPatient(null)
   }
@@ -121,7 +145,6 @@ export function PatientRecordsSection({ currentUserId, currentUserRole }: Patien
 
   return (
     <div className="space-y-6">
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
           <CardContent className="p-6">
@@ -140,12 +163,12 @@ export function PatientRecordsSection({ currentUserId, currentUserRole }: Patien
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center space-x-4">
-              <div className="p-3 bg-yellow-100 rounded-lg">
-                <FileText className="w-6 h-6 text-yellow-600" />
+              <div className="p-3 bg-emerald-100 rounded-lg">
+                <FileText className="w-6 h-6 text-emerald-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-600">With Medical Conditions</p>
-                <p className="text-3xl font-bold">{stats.withConditions}</p>
+                <p className="text-sm text-gray-600">Completed Treatments</p>
+                <p className="text-3xl font-bold">{stats.completedTreatments}</p>
               </div>
             </div>
           </CardContent>
@@ -154,19 +177,32 @@ export function PatientRecordsSection({ currentUserId, currentUserRole }: Patien
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center space-x-4">
-              <div className="p-3 bg-red-100 rounded-lg">
-                <AlertCircle className="w-6 h-6 text-red-600" />
+              <div className="p-3 bg-sky-100 rounded-lg">
+                <AlertCircle className="w-6 h-6 text-sky-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-600">With Allergies</p>
-                <p className="text-3xl font-bold">{stats.withAllergies}</p>
+                <p className="text-sm text-gray-600">Ongoing Treatments</p>
+                <p className="text-3xl font-bold">{stats.ongoingTreatments}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-4">
+              <div className="p-3 bg-amber-100 rounded-lg">
+                <AlertCircle className="w-6 h-6 text-amber-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">OPD Not Converted</p>
+                <p className="text-3xl font-bold">{stats.opdNotConvertedTreatments}</p>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Search and Filter Controls */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -203,7 +239,6 @@ export function PatientRecordsSection({ currentUserId, currentUserRole }: Patien
             </Select>
           </div>
 
-          {/* Patient Records Grid */}
           {filteredPatients.length === 0 ? (
             <div className="text-center py-12">
               <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
@@ -304,7 +339,6 @@ export function PatientRecordsSection({ currentUserId, currentUserRole }: Patien
         </CardContent>
       </Card>
 
-      {/* Patient Profile Modal */}
       <PatientProfileModal
         isOpen={!!selectedPatient}
         onClose={() => setSelectedPatient(null)}

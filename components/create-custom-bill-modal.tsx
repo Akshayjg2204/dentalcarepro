@@ -1,15 +1,16 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { FileText } from "lucide-react"
+import { FileText, Stethoscope, Users } from "lucide-react"
 import { createCustomBill } from "@/lib/custom-bills"
+import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
 
 interface CreateCustomBillModalProps {
@@ -33,10 +34,46 @@ export function CreateCustomBillModal({
     billAmount: "",
     paidAmount: "",
     paymentMethod: "",
-    assignedTo: "",
+    assignedDoctor: "",
+    assignedStaff: "",
     notes: "",
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [doctors, setDoctors] = useState<any[]>([])
+  const [staff, setStaff] = useState<any[]>([])
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchDoctorsAndStaff()
+    }
+  }, [isOpen])
+
+  const fetchDoctorsAndStaff = async () => {
+    try {
+      // Fetch doctors
+      const { data: doctorsData, error: doctorsError } = await supabase
+        .from("users")
+        .select("id, first_name, last_name, role")
+        .eq("role", "doctor")
+        .order("first_name")
+
+      if (doctorsError) throw doctorsError
+      setDoctors(doctorsData || [])
+
+      // Fetch staff
+      const { data: staffData, error: staffError } = await supabase
+        .from("users")
+        .select("id, first_name, last_name, role")
+        .eq("role", "staff")
+        .order("first_name")
+
+      if (staffError) throw staffError
+      setStaff(staffData || [])
+    } catch (error: any) {
+      console.error("Error fetching doctors and staff:", error)
+      toast.error("Failed to load doctors and staff")
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -57,7 +94,8 @@ export function CreateCustomBillModal({
         bill_amount: billAmount,
         paid_amount: paidAmount,
         payment_method: formData.paymentMethod || null,
-        assigned_to: formData.assignedTo || null,
+        assigned_doctor: formData.assignedDoctor || null,
+        assigned_staff: formData.assignedStaff || null,
         notes: formData.notes || null,
         created_by: currentUserId,
       })
@@ -72,7 +110,8 @@ export function CreateCustomBillModal({
         billAmount: "",
         paidAmount: "",
         paymentMethod: "",
-        assignedTo: "",
+        assignedDoctor: "",
+        assignedStaff: "",
         notes: "",
       })
     } catch (error: any) {
@@ -89,16 +128,18 @@ export function CreateCustomBillModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
-        <DialogHeader className="flex-shrink-0">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <FileText className="w-5 h-5" />
             <span>Create Custom Bill</span>
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto">
-          <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Bill Details Section */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-gray-700 border-b pb-2">Bill Details</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="billName">Bill Name *</Label>
@@ -121,7 +162,13 @@ export function CreateCustomBillModal({
                   required
                 />
               </div>
+            </div>
+          </div>
 
+          {/* Payment Information Section */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-gray-700 border-b pb-2">Payment Information</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="billAmount">Bill Amount (Rs) *</Label>
                 <Input
@@ -149,7 +196,7 @@ export function CreateCustomBillModal({
                 />
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="paymentMethod">Payment Method</Label>
                 <Select
                   value={formData.paymentMethod}
@@ -167,18 +214,63 @@ export function CreateCustomBillModal({
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-gray-700 border-b pb-2">Assignment (Optional)</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5">
+                  <Stethoscope className="w-4 h-4 text-green-600" />
+                  <span>Assign Doctor</span>
+                </Label>
+                <Select
+                  value={formData.assignedDoctor}
+                  onValueChange={(value) => handleInputChange("assignedDoctor", value === "none" ? "" : value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="No doctor assigned" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No doctor assigned</SelectItem>
+                    {doctors.map((doctor) => (
+                      <SelectItem key={doctor.id} value={doctor.id}>
+                        Dr. {doctor.first_name} {doctor.last_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
               <div className="space-y-2">
-                <Label htmlFor="assignedTo">Assigned To</Label>
-                <Input
-                  id="assignedTo"
-                  value={formData.assignedTo}
-                  onChange={(e) => handleInputChange("assignedTo", e.target.value)}
-                  placeholder="Doctor/Staff name"
-                />
+                <Label className="flex items-center gap-1.5">
+                  <Users className="w-4 h-4 text-blue-600" />
+                  <span>Assign Staff</span>
+                </Label>
+                <Select
+                  value={formData.assignedStaff}
+                  onValueChange={(value) => handleInputChange("assignedStaff", value === "none" ? "" : value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="No staff assigned" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No staff assigned</SelectItem>
+                    {staff.map((staffMember) => (
+                      <SelectItem key={staffMember.id} value={staffMember.id}>
+                        {staffMember.first_name} {staffMember.last_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
+          </div>
 
+          {/* Notes Section */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-gray-700 border-b pb-2">Additional Information</h3>
             <div className="space-y-2">
               <Label htmlFor="notes">Notes</Label>
               <Textarea
@@ -189,19 +281,18 @@ export function CreateCustomBillModal({
                 rows={3}
               />
             </div>
-          </form>
-        </div>
+          </div>
 
-        <div className="flex-shrink-0 border-t pt-4 mt-4">
-          <div className="flex justify-end space-x-3">
-            <Button type="button" variant="outline" onClick={onClose}>
+          {/* Action Buttons */}
+          <div className="flex justify-end space-x-3 pt-4 border-t">
+            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting} onClick={handleSubmit}>
+            <Button type="submit" disabled={isSubmitting} className="bg-gray-900 hover:bg-gray-800">
               {isSubmitting ? "Creating..." : "Create Bill"}
             </Button>
           </div>
-        </div>
+        </form>
       </DialogContent>
     </Dialog>
   )

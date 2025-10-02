@@ -60,6 +60,7 @@ interface PatientProfileModalProps {
   currentUserRole: string
   initialTab?: string
   appointmentId?: string
+  onPatientUpdated?: () => void // Added callback to refresh parent stats
 }
 
 interface PatientProfile {
@@ -99,13 +100,16 @@ interface Appointment {
   doctor?: {
     first_name: string
     last_name: string
+    full_name?: string // Added for convenience
   }
   staff?: {
     first_name: string
     last_name: string
+    full_name?: string // Added for convenience
   }
   payment_id?: string
   patient_id: string
+  doctor_name?: string // Added for appointmentPayments
 }
 
 interface Payment {
@@ -117,6 +121,13 @@ interface Payment {
   payment_method?: string
   payment_date: string
   description?: string
+  appointment?: {
+    // Added for appointmentPayments context
+    appointment_type: string
+    appointment_date: string
+    doctor_name?: string // Added for appointmentPayments
+  }
+  patient_id: string
 }
 
 interface Treatment {
@@ -137,6 +148,8 @@ export function PatientProfileModal({
   currentUserId,
   currentUserRole,
   initialTab = "profile",
+  appointmentId,
+  onPatientUpdated, // Accept the callback prop
 }: PatientProfileModalProps) {
   const [activeTab, setActiveTab] = useState(initialTab)
   const [profile, setProfile] = useState<PatientProfile | null>(null)
@@ -207,7 +220,7 @@ export function PatientProfileModal({
   const [selectedTreatment, setSelectedTreatment] = useState<any>(null)
   const [treatmentForm, setTreatmentForm] = useState({
     teeth_numbers: "",
-    amount: 0,
+    amount: 0, // This will be overwritten by selectedTreatment.default_cost when a treatment is selected
     date: "",
     notes: "",
   })
@@ -294,7 +307,9 @@ export function PatientProfileModal({
             payment_status,
             payment_method,
             id
-          )
+          ),
+          doctor:users!appointments_doctor_id_fkey(first_name, last_name),
+          staff:users!appointments_staff_id_fkey(first_name, last_name)
         `)
         .eq("patient_id", patientId)
         .order("appointment_date", { ascending: false })
@@ -304,57 +319,27 @@ export function PatientProfileModal({
         throw appointmentsError
       }
 
-      const appointmentsWithDetails = await Promise.all(
-        (appointmentsData || []).map(async (appointment) => {
-          let doctor = null
-          let staff = null
+      const appointmentsWithDetails = (appointmentsData || []).map((appointment) => {
+        const paymentInfo = appointment.payments?.[0] || {}
 
-          if (appointment.doctor_id) {
-            try {
-              const { data: doctorData, error: doctorError } = await supabase
-                .from("users")
-                .select("first_name, last_name")
-                .eq("id", appointment.doctor_id)
-                .single()
-
-              if (!doctorError && doctorData) {
-                doctor = doctorData
-              }
-            } catch (error) {
-              console.error("Error fetching doctor details:", error)
-            }
-          }
-
-          if (appointment.assigned_staff) {
-            try {
-              const { data: staffData, error: staffError } = await supabase
-                .from("users")
-                .select("first_name, last_name")
-                .eq("id", appointment.assigned_staff)
-                .single()
-
-              if (!staffError && staffData) {
-                staff = staffData
-              }
-            } catch (error) {
-              console.error("Error fetching staff details:", error)
-            }
-          }
-
-          const paymentInfo = appointment.payments?.[0] || {}
-
-          return {
-            ...appointment,
-            doctor,
-            staff,
-            bill_amount: paymentInfo.bill_amount || 0,
-            paid_amount: paymentInfo.paid_amount || 0,
-            payment_status: paymentInfo.payment_status || "not_paid",
-            payment_method: paymentInfo.payment_method,
-            payment_id: paymentInfo.id,
-          }
-        }),
-      )
+        return {
+          ...appointment,
+          doctor: appointment.doctor
+            ? { ...appointment.doctor, full_name: `${appointment.doctor.first_name} ${appointment.doctor.last_name}` }
+            : null,
+          staff: appointment.staff
+            ? { ...appointment.staff, full_name: `${appointment.staff.first_name} ${appointment.staff.last_name}` }
+            : null,
+          bill_amount: paymentInfo.bill_amount || 0,
+          paid_amount: paymentInfo.paid_amount || 0,
+          payment_status: paymentInfo.payment_status || "not_paid",
+          payment_method: paymentInfo.payment_method,
+          payment_id: paymentInfo.id,
+          doctor_name: appointment.doctor
+            ? `${appointment.doctor.first_name} ${appointment.doctor.last_name}`
+            : undefined, // Explicitly set for clarity
+        }
+      })
 
       setAppointments(appointmentsWithDetails)
     } catch (error) {
@@ -387,7 +372,10 @@ export function PatientProfileModal({
     try {
       const { data, error } = await supabase
         .from("payments")
-        .select("*")
+        .select(`
+          *,
+          appointment:appointments(appointment_type, appointment_date, doctor:users!appointments_doctor_id_fkey(first_name, last_name))
+        `)
         .eq("patient_id", patientId)
         .order("payment_date", { ascending: false })
 
@@ -427,6 +415,7 @@ export function PatientProfileModal({
       setProfile(editedPatient)
       setIsEditing(false)
       toast.success("Patient profile updated successfully!")
+      onPatientUpdated?.() // Refresh parent stats after profile update
     } catch (error: any) {
       console.error("Error updating patient profile:", error)
       toast.error("Failed to update profile: " + error.message)
@@ -444,6 +433,7 @@ export function PatientProfileModal({
       if (result.success) {
         toast.success(`Appointment ${newStatus} successfully!`)
         await fetchAppointments() // Refresh appointments
+        onPatientUpdated?.() // Refresh parent stats after appointment update
       } else {
         throw new Error(result.error)
       }
@@ -468,6 +458,7 @@ export function PatientProfileModal({
       await uploadPatientDocument(patientId, file)
       toast.success("Document uploaded successfully!")
       await fetchDocuments()
+      onPatientUpdated?.() // Refresh parent stats after document upload
     } catch (error: any) {
       console.error("Error uploading document from modal:", error)
       toast.error("Failed to upload document: " + error.message)
@@ -486,6 +477,7 @@ export function PatientProfileModal({
       await deletePatientDocument(documentId)
       toast.success("Document deleted successfully!")
       await fetchDocuments()
+      onPatientUpdated?.() // Refresh parent stats after document deletion
     } catch (error: any) {
       console.error("Error deleting document:", error)
       toast.error("Failed to delete document: " + error.message)
@@ -649,16 +641,18 @@ export function PatientProfileModal({
   const handleAssignmentUpdated = async () => {
     await fetchAppointments() // Refresh appointments
     setAssignmentModalAppointment(null)
+    onPatientUpdated?.() // Refresh parent stats after assignment update
   }
 
   const _handlePaymentUpdated = async () => {
-    await fetchBillingRecords(true) // Refresh billing records
+    await fetchBillingRecords() // Refresh billing records
     await fetchAppointments() // Refresh appointments
     setUpdatePaymentModal({
       isOpen: false,
       payment: null,
       appointment: null,
     })
+    onPatientUpdated?.() // Refresh parent stats after payment update
   }
 
   const handleUpdateCustomBillPayment = async (record: any) => {
@@ -671,17 +665,21 @@ export function PatientProfileModal({
   const handleUpdateAppointmentPayment = async (payment: Payment) => {
     console.log("[v0] Mark Paid/Update Payment button clicked for appointment payment:", payment)
     setSelectedAppointmentForPayment({
-      id: payment.appointment_id || payment.id,
+      id: payment.appointment_id || payment.id, // Fallback to payment.id if appointment_id is null
       appointment_date: payment.appointment?.appointment_date || "",
-      appointment_time: payment.appointment?.appointment_time || "",
+      appointment_time: "", // Assuming time is not directly available in payment object in this context
       appointment_type: payment.appointment?.appointment_type || "Appointment",
-      status: payment.appointment?.status || "completed",
-      patient_id: payment.patient_id,
+      status: "completed", // Assuming this is for completed appointments
+      patient_id: payment.patient_id, // Assuming patient_id is available in Payment object
       bill_amount: payment.bill_amount,
       paid_amount: payment.paid_amount,
       payment_status: payment.payment_status,
       payment_method: payment.payment_method,
       payment_id: payment.id,
+      doctor_name:
+        payment.appointment?.doctor?.first_name && payment.appointment?.doctor?.last_name
+          ? `${payment.appointment.doctor.first_name} ${payment.appointment.doctor.last_name}`
+          : undefined,
     })
     setUpdatePaymentModalOpen(true)
     console.log("[v0] Modal state set - updatePaymentModalOpen: true")
@@ -718,9 +716,7 @@ export function PatientProfileModal({
 
       if (customBillCheck) {
         try {
-          const { data, error, count } = await supabase.from("custom_bills").delete().eq("id", record.id)
-
-          console.log("[v0] Delete operation result - data:", data, "error:", error, "count:", count)
+          const { error } = await supabase.from("custom_bills").delete().eq("id", record.id)
 
           if (error) {
             console.log("[v0] Error deleting from custom_bills:", error.message)
@@ -744,9 +740,7 @@ export function PatientProfileModal({
 
       if (!deletedSuccessfully && billingRecordCheck) {
         try {
-          const { data, error, count } = await supabase.from("billing_records").delete().eq("id", record.id)
-
-          console.log("[v0] Delete billing record result - data:", data, "error:", error, "count:", count)
+          const { error } = await supabase.from("billing_records").delete().eq("id", record.id)
 
           if (error) {
             console.log("[v0] Error deleting from billing_records:", error.message)
@@ -795,6 +789,7 @@ export function PatientProfileModal({
       }, 500)
 
       toast.success("Custom bill deleted successfully!")
+      onPatientUpdated?.() // Refresh parent stats after custom bill deletion
     } catch (error) {
       console.error("[v0] Error deleting custom bill:", error)
       toast.error(error instanceof Error ? error.message : "Failed to delete custom bill")
@@ -807,6 +802,7 @@ export function PatientProfileModal({
     setSelectedCustomBillForPayment(null)
     await Promise.all([fetchBillingRecords(), fetchAppointments(), fetchPayments()])
     toast.success("Custom bill payment updated successfully!")
+    onPatientUpdated?.() // Refresh parent stats after custom bill payment update
   }
 
   const _handlePaymentUpdated2 = async () => {
@@ -815,6 +811,7 @@ export function PatientProfileModal({
     setSelectedAppointmentForPayment(null)
     await Promise.all([fetchBillingRecords(), fetchAppointments(), fetchPayments()])
     toast.success("Payment updated successfully!")
+    onPatientUpdated?.() // Refresh parent stats after payment update
   }
 
   const _handleAssignStaff = async (appointment: Appointment) => {
@@ -851,6 +848,7 @@ export function PatientProfileModal({
       setAssignStaffModalOpen(false)
       setSelectedAppointmentForAssign(null)
       await fetchAppointments() // Refresh appointments
+      onPatientUpdated?.() // Refresh parent stats after staff assignment
     } catch (error) {
       console.error("Error assigning staff:", error)
       toast.error("Failed to assign staff")
@@ -900,6 +898,7 @@ export function PatientProfileModal({
               ? "/dashboard"
               : "/admin"
       router.push(`${dashboardPath}?tab=appointments&highlight=${appointment.id}`)
+      onPatientUpdated?.() // Refresh parent stats after completing appointment
     },
     [onClose, router, currentUserRole],
   )
@@ -921,6 +920,7 @@ export function PatientProfileModal({
     if (shouldOpenProfile) {
       setActiveTab("billing")
     }
+    onPatientUpdated?.() // Refresh parent stats after appointment completion
   }
 
   const handleDeleteAppointment = async (appointmentId: string) => {
@@ -938,6 +938,7 @@ export function PatientProfileModal({
       toast.success("Appointment deleted successfully!")
       await fetchAppointments() // Refresh appointments
       await fetchBillingRecords() // Refresh billing records
+      onPatientUpdated?.() // Refresh parent stats after appointment deletion
     } catch (error: any) {
       toast.error("Failed to delete appointment: " + (error.message || "Unknown error"))
     } finally {
@@ -964,7 +965,7 @@ export function PatientProfileModal({
           teeth_numbers: treatmentForm.teeth_numbers,
           cost: treatmentForm.amount,
           notes: treatmentForm.notes,
-          status: "planned",
+          status: "ongoing",
         })
         .select(`
           *,
@@ -979,7 +980,8 @@ export function PatientProfileModal({
       setPatientTreatments((prev) => [...prev, data])
       setSelectedTreatment(null)
       setTreatmentForm({ teeth_numbers: "", amount: 0, date: "", notes: "" })
-      await fetchTreatments()
+      await fetchTreatments() // Refetch to ensure updated data
+      onPatientUpdated?.() // Refresh parent stats after treatment addition
     } catch (error: any) {
       console.error("Error adding treatment:", error)
       toast.error("Failed to add treatment: " + error.message)
@@ -999,7 +1001,8 @@ export function PatientProfileModal({
 
       toast.success("Treatment deleted successfully!")
       setPatientTreatments((prev) => prev.filter((treatment) => treatment.id !== treatmentId))
-      await fetchTreatments()
+      await fetchTreatments() // Refetch to ensure updated data
+      onPatientUpdated?.() // Refresh parent stats after treatment deletion
     } catch (error: any) {
       console.error("Error deleting treatment:", error)
       toast.error("Failed to delete treatment: " + error.message)
@@ -1026,9 +1029,10 @@ export function PatientProfileModal({
       if (error) throw error
 
       toast.success("Treatment created successfully!")
-      setAvailableTreatments((prev) => [...prev, data])
+      setAvailableTreatments((prev) => [...prev, data]) // Add to available treatments for selection
       setShowCreateTreatment(false)
       setNewTreatment({ name: "", description: "", default_cost: 0, duration_minutes: 30, category: "" })
+      onPatientUpdated?.() // Refresh parent stats after treatment creation
     } catch (error: any) {
       console.error("Error creating treatment:", error)
       toast.error("Failed to create treatment: " + error.message)
@@ -1037,6 +1041,7 @@ export function PatientProfileModal({
     }
   }
 
+  // Function to load all available treatments from the database
   const loadAvailableTreatments = async () => {
     try {
       const { data, error } = await supabase.from("treatments").select("*").order("name")
@@ -1050,6 +1055,7 @@ export function PatientProfileModal({
     }
   }
 
+  // Function to load all treatments for the specific patient
   const loadPatientTreatments = async () => {
     if (!patientId) return
 
@@ -1067,7 +1073,7 @@ export function PatientProfileModal({
 
       if (error) throw error
 
-      // Transform the data to match the expected structure
+      // Transform the data to match the expected structure for the UI
       const transformedTreatments = data.map((item) => ({
         id: item.id,
         patient_id: item.patient_id,
@@ -1076,7 +1082,7 @@ export function PatientProfileModal({
         teeth_numbers: item.teeth_numbers,
         cost: item.cost,
         notes: item.notes,
-        status: item.status,
+        status: item.status, // Existing status
         treatment_name: item.treatment?.name || "Unknown Treatment",
         treatment_description: item.treatment?.description || "",
         treatment_category: item.treatment?.category || "",
@@ -1094,67 +1100,13 @@ export function PatientProfileModal({
   }
 
   useEffect(() => {
-    const fetchAvailableTreatments = async () => {
-      setLoadingTreatments(true)
-      try {
-        const { data, error } = await supabase.from("treatments").select("*").order("name")
-
-        if (error) throw error
-
-        setAvailableTreatments(data || [])
-      } catch (error: any) {
-        console.error("Error fetching available treatments:", error)
-        toast.error("Failed to load available treatments: " + error.message)
-      } finally {
-        setLoadingTreatments(false)
+    // Fetch available treatments and patient-specific treatments when the modal opens
+    const fetchAllTreatmentsData = async () => {
+      if (isOpen && patientId) {
+        await Promise.all([loadAvailableTreatments(), loadPatientTreatments()])
       }
     }
-
-    const fetchPatientTreatments = async () => {
-      setLoadingTreatments(true)
-      try {
-        const { data, error } = await supabase
-          .from("patient_treatments")
-          .select(`
-            *,
-            treatment:treatments(name, description, category),
-            doctor:users!patient_treatments_doctor_id_fkey(first_name, last_name)
-          `)
-          .eq("patient_id", patientId)
-          .order("treatment_date", { ascending: false })
-
-        if (error) throw error
-
-        // Transform the data to match the expected structure
-        const transformedTreatments = data.map((item) => ({
-          id: item.id,
-          patient_id: item.patient_id,
-          treatment_id: item.treatment_id,
-          treatment_date: item.treatment_date,
-          teeth_numbers: item.teeth_numbers,
-          cost: item.cost,
-          notes: item.notes,
-          status: item.status,
-          treatment_name: item.treatment?.name || "Unknown Treatment",
-          treatment_description: item.treatment?.description || "",
-          treatment_category: item.treatment?.category || "",
-          doctor_first_name: item.doctor?.first_name || "",
-          doctor_last_name: item.doctor?.last_name || "",
-        }))
-
-        setPatientTreatments(transformedTreatments || [])
-      } catch (error: any) {
-        console.error("Error fetching patient treatments:", error)
-        toast.error("Failed to load patient treatments: " + error.message)
-      } finally {
-        setLoadingTreatments(false)
-      }
-    }
-
-    if (isOpen && patientId) {
-      fetchAvailableTreatments()
-      fetchPatientTreatments()
-    }
+    fetchAllTreatmentsData()
   }, [isOpen, patientId])
 
   if (!isOpen) return null
@@ -1187,42 +1139,25 @@ export function PatientProfileModal({
             </div>
           ) : profile ? (
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-              <TabsList className="flex w-full overflow-x-auto md:grid md:grid-cols-5 bg-gray-50 scrollbar-hide">
-                <TabsTrigger
-                  value="profile"
-                  className="flex items-center space-x-1 md:space-x-2 text-xs md:text-sm whitespace-nowrap flex-shrink-0 min-w-fit px-3 md:px-4"
-                >
-                  <User className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
-                  <span className="hidden sm:inline">Basic Information</span>
-                  <span className="sm:hidden">Info</span>
+              <TabsList className="grid w-full grid-cols-5 bg-gray-50">
+                <TabsTrigger value="profile" className="flex items-center space-x-2">
+                  <User className="w-4 h-4" />
+                  <span>Basic Information</span>
                 </TabsTrigger>
-                <TabsTrigger
-                  value="appointments"
-                  className="flex items-center space-x-1 md:space-x-2 text-xs md:text-sm whitespace-nowrap flex-shrink-0 min-w-fit px-3 md:px-4"
-                >
-                  <Calendar className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
-                  <span className="hidden sm:inline">Appointments</span>
-                  <span className="sm:hidden">Appts</span>
+                <TabsTrigger value="appointments" className="flex items-center space-x-2">
+                  <Calendar className="w-4 h-4" />
+                  <span>Appointments</span>
                 </TabsTrigger>
-                <TabsTrigger
-                  value="treatments"
-                  className="flex items-center space-x-1 md:space-x-2 text-xs md:text-sm whitespace-nowrap flex-shrink-0 min-w-fit px-3 md:px-4"
-                >
-                  <Activity className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
+                <TabsTrigger value="treatments" className="flex items-center space-x-2">
+                  <Activity className="w-4 h-4" />
                   <span>Treatment</span>
                 </TabsTrigger>
-                <TabsTrigger
-                  value="documents"
-                  className="flex items-center space-x-1 md:space-x-2 text-xs md:text-sm whitespace-nowrap flex-shrink-0 min-w-fit px-3 md:px-4"
-                >
-                  <FileText className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
+                <TabsTrigger value="documents" className="flex items-center space-x-2">
+                  <FileText className="w-4 h-4" />
                   <span>Documents</span>
                 </TabsTrigger>
-                <TabsTrigger
-                  value="billing"
-                  className="flex items-center space-x-1 md:space-x-2 text-xs md:text-sm whitespace-nowrap flex-shrink-0 min-w-fit px-3 md:px-4"
-                >
-                  <CreditCard className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
+                <TabsTrigger value="billing" className="flex items-center space-x-2">
+                  <CreditCard className="w-4 h-4" />
                   <span>Billing</span>
                 </TabsTrigger>
               </TabsList>
@@ -1649,13 +1584,13 @@ export function PatientProfileModal({
                                       </div>
                                       <div className="flex justify-between">
                                         <span>Paid Amount:</span>
-                                        <span>Rs {payment.amount_paid?.toFixed(2) || "0.00"}</span>
+                                        <span>Rs {payment.paid_amount?.toFixed(2) || "0.00"}</span>
                                       </div>
-                                      {(payment.amount || 0) > (payment.amount_paid || 0) && (
+                                      {(payment.amount || 0) > (payment.paid_amount || 0) && (
                                         <div className="flex justify-between text-red-600 font-medium">
                                           <span>Outstanding:</span>
                                           <span>
-                                            Rs {((payment.amount || 0) - (payment.amount_paid || 0)).toFixed(2)}
+                                            Rs {((payment.amount || 0) - (payment.paid_amount || 0)).toFixed(2)}
                                           </span>
                                         </div>
                                       )}
@@ -1788,11 +1723,11 @@ export function PatientProfileModal({
                                           <div className="text-gray-600">Payment</div>
                                           <div className="space-y-1">
                                             <div>Bill Amount: Rs {payment.amount?.toFixed(2) || "0.00"}</div>
-                                            <div>Paid Amount: Rs {payment.amount_paid?.toFixed(2) || "0.00"}</div>
-                                            {(payment.amount || 0) > (payment.amount_paid || 0) && (
+                                            <div>Paid Amount: Rs {payment.paid_amount?.toFixed(2) || "0.00"}</div>
+                                            {(payment.amount || 0) > (payment.paid_amount || 0) && (
                                               <div className="text-red-600 font-medium">
                                                 Outstanding: Rs{" "}
-                                                {((payment.amount || 0) - (payment.amount_paid || 0)).toFixed(2)}
+                                                {((payment.amount || 0) - (payment.paid_amount || 0)).toFixed(2)}
                                               </div>
                                             )}
                                           </div>
@@ -1807,7 +1742,7 @@ export function PatientProfileModal({
                                               size="sm"
                                               onClick={() => handleAppointmentStatusUpdate(appointment.id, "approved")}
                                               disabled={isProcessing}
-                                              className="bg-blue-600 hover:bg-blue-700 text-white"
+                                              className="bg-blue-600 hover:bg-blue-700"
                                             >
                                               {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Approve"}
                                             </Button>
@@ -2031,7 +1966,7 @@ export function PatientProfileModal({
 
                     {/* Patient Treatments List */}
                     <div className="space-y-4">
-                      <h3 className="font-medium text-lg">Patient Treatments</h3>
+                      <h3 className="font-medium text-lg">Treatment History</h3>
                       {loadingTreatments ? (
                         <div className="flex items-center justify-center py-8">
                           <Loader2 className="h-6 w-6 animate-spin mr-2" />
@@ -2050,8 +1985,27 @@ export function PatientProfileModal({
                                 <div className="flex-1">
                                   <div className="flex items-center space-x-2 mb-2">
                                     <h4 className="font-medium">{treatment.treatment_name}</h4>
-                                    <Badge variant={treatment.status === "completed" ? "default" : "secondary"}>
-                                      {treatment.status}
+                                    <Badge
+                                      variant={
+                                        treatment.status === "completed"
+                                          ? "default"
+                                          : treatment.status === "ongoing"
+                                            ? "secondary"
+                                            : "outline"
+                                      }
+                                      className={
+                                        treatment.status === "completed"
+                                          ? "bg-green-100 text-green-800"
+                                          : treatment.status === "ongoing"
+                                            ? "bg-blue-100 text-blue-800"
+                                            : "bg-orange-100 text-orange-800"
+                                      }
+                                    >
+                                      {treatment.status === "completed"
+                                        ? "Completed"
+                                        : treatment.status === "ongoing"
+                                          ? "Ongoing"
+                                          : "OPD Not Converted"}
                                     </Badge>
                                   </div>
                                   {treatment.teeth_numbers && (
@@ -2071,6 +2025,52 @@ export function PatientProfileModal({
                                     <p className="text-sm text-gray-600">
                                       <strong>Notes:</strong> {treatment.notes}
                                     </p>
+                                  )}
+                                  {(currentUserRole === "admin" ||
+                                    currentUserRole === "doctor" ||
+                                    currentUserRole === "staff") && (
+                                    <div className="mt-3 pt-3 border-t">
+                                      <Label className="text-xs font-medium text-gray-700">Update Status</Label>
+                                      <Select
+                                        value={treatment.status}
+                                        onValueChange={async (newStatus) => {
+                                          try {
+                                            console.log(
+                                              "[v0] Updating treatment status from",
+                                              treatment.status,
+                                              "to",
+                                              newStatus,
+                                            )
+                                            const { error } = await supabase
+                                              .from("patient_treatments")
+                                              .update({ status: newStatus })
+                                              .eq("id", treatment.id)
+
+                                            if (error) {
+                                              console.error("[v0] Database error:", error)
+                                              throw error
+                                            }
+
+                                            console.log("[v0] Treatment status updated successfully")
+                                            toast.success("Treatment status updated successfully!")
+                                            loadPatientTreatments() // Refetch to update UI
+                                            onPatientUpdated?.() // Refresh parent stats after status change
+                                          } catch (error: any) {
+                                            console.error("[v0] Error updating treatment status:", error.message)
+                                            toast.error(`Failed to update treatment status: ${error.message}`)
+                                          }
+                                        }}
+                                      >
+                                        <SelectTrigger className="mt-1 h-8 text-sm">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="ongoing">Ongoing</SelectItem>
+                                          <SelectItem value="completed">Completed</SelectItem>
+                                          <SelectItem value="opd_not_converted">OPD Not Converted</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
                                   )}
                                 </div>
                                 {currentUserRole === "admin" && (
@@ -2256,44 +2256,32 @@ export function PatientProfileModal({
                         <span>Loading documents...</span>
                       </div>
                     ) : documents.length > 0 ? (
-                      /* Improved document layout with proper spacing and truncation */
-                      <div className="space-y-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                         {documents.map((document) => (
-                          <div key={document.id} className="border rounded-lg p-4">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                              <div className="flex-1 min-w-0">
-                                <h4
-                                  className="font-semibold text-sm sm:text-base truncate pr-2"
-                                  title={document.file_name}
-                                >
-                                  {document.file_name}
-                                </h4>
-                                <p className="text-xs sm:text-sm text-gray-500">
+                          <div key={document.id} className="border rounded-lg p-3">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h4 className="font-semibold">{document.file_name}</h4>
+                                <p className="text-sm text-gray-500">
                                   Uploaded: {new Date(document.created_at).toLocaleDateString()}
                                 </p>
                               </div>
-                              <div className="flex items-center gap-2 flex-shrink-0">
+                              <div className="flex items-center space-x-2">
                                 {isImageFile(document.file_type) && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => handlePreviewImage(document)}
                                     disabled={loadingPreview.has(document.id)}
-                                    className="text-xs px-2 py-1 h-8"
                                   >
                                     {loadingPreview.has(document.id) ? (
-                                      <Loader2 className="h-3 w-3 animate-spin" />
+                                      <Loader2 className="h-4 w-4 animate-spin" />
                                     ) : (
                                       "Preview"
                                     )}
                                   </Button>
                                 )}
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleDownloadDocument(document)}
-                                  className="text-xs px-2 py-1 h-8"
-                                >
+                                <Button variant="ghost" size="sm" onClick={() => handleDownloadDocument(document)}>
                                   Download
                                 </Button>
                                 <Button
@@ -2301,12 +2289,12 @@ export function PatientProfileModal({
                                   size="sm"
                                   onClick={() => handleDeleteDocument(document.id, document.file_name)}
                                   disabled={deletingDocuments.has(document.id)}
-                                  className="text-red-600 hover:text-red-700 text-xs px-2 py-1 h-8"
+                                  className="text-red-600 hover:text-red-700"
                                 >
                                   {deletingDocuments.has(document.id) ? (
-                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                    <Loader2 className="h-4 w-4 animate-spin" />
                                   ) : (
-                                    <Trash2 className="w-3 h-3" />
+                                    <Trash2 className="w-4 h-4" />
                                   )}
                                 </Button>
                               </div>
@@ -2341,13 +2329,15 @@ export function PatientProfileModal({
                       <div className="space-y-4">
                         <div className="overflow-x-auto">
                           <div className="min-w-full">
-                            <div className="grid grid-cols-6 gap-4 py-3 border-b font-medium text-sm text-gray-600 min-w-[800px]">
+                            <div className="grid grid-cols-[1fr_1fr_1fr_1fr_1fr_1fr_0.8fr_1.2fr] gap-4 py-3 border-b font-medium text-sm text-gray-600 min-w-[1000px]">
                               <div>DESCRIPTION</div>
                               <div>DATE</div>
                               <div>AMOUNT</div>
                               <div>PAID</div>
+                              <div>DOCTOR</div>
+                              <div>STAFF</div>
                               <div>STATUS</div>
-                              <div className="min-w-[200px]">ACTION</div>
+                              <div>ACTION</div>
                             </div>
                             {appointmentPayments.map((payment) => {
                               const calculatedStatus =
@@ -2360,7 +2350,7 @@ export function PatientProfileModal({
                               return (
                                 <div
                                   key={`payment-${payment.id}`}
-                                  className="grid grid-cols-6 gap-4 py-3 border-b items-center min-w-[800px]"
+                                  className="grid grid-cols-[1fr_1fr_1fr_1fr_1fr_1fr_0.8fr_1.2fr] gap-4 py-3 border-b items-center min-w-[1000px]"
                                 >
                                   <div className="font-medium">
                                     {payment.appointment?.appointment_type || "Appointment"} Appointment
@@ -2380,6 +2370,16 @@ export function PatientProfileModal({
                                   </div>
                                   <div className="font-medium">Rs {payment.bill_amount.toFixed(2)}</div>
                                   <div className="text-sm text-gray-600">Rs {payment.paid_amount.toFixed(2)}</div>
+                                  <div className="text-sm text-gray-600">
+                                    {payment.appointment?.doctor?.first_name && payment.appointment.doctor.last_name
+                                      ? `${payment.appointment.doctor.first_name} ${payment.appointment.doctor.last_name}`
+                                      : "-"}
+                                  </div>
+                                  <div className="text-sm text-gray-600">
+                                    {payment.appointment?.staff?.first_name && payment.appointment.staff.last_name
+                                      ? `${payment.appointment.staff.first_name} ${payment.appointment.staff.last_name}`
+                                      : "-"}
+                                  </div>
                                   <div>
                                     <span
                                       className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -2397,13 +2397,13 @@ export function PatientProfileModal({
                                           : "Not Paid"}
                                     </span>
                                   </div>
-                                  <div className="flex gap-2 min-w-[200px]">
+                                  <div className="flex flex-col gap-1">
                                     <Button
                                       size="sm"
                                       onClick={() => handleUpdateAppointmentPayment(payment)}
-                                      className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 whitespace-nowrap"
+                                      className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 whitespace-nowrap w-full"
                                     >
-                                      Mark Paid/Update Payment
+                                      Update Payment
                                     </Button>
                                   </div>
                                 </div>
@@ -2426,7 +2426,7 @@ export function PatientProfileModal({
                                 return (
                                   <div
                                     key={`billing-${record.id}`}
-                                    className="grid grid-cols-6 gap-4 py-3 border-b items-center min-w-[800px]"
+                                    className="grid grid-cols-[1fr_1fr_1fr_1fr_1fr_1fr_0.8fr_1.2fr] gap-4 py-3 border-b items-center min-w-[1000px]"
                                   >
                                     <div className="font-medium">
                                       {record.isCustomBill
@@ -2450,6 +2450,8 @@ export function PatientProfileModal({
                                     <div className="text-sm text-gray-600">
                                       Rs {(record.amount_paid || 0).toFixed(2)}
                                     </div>
+                                    <div className="text-sm text-gray-600">{record.doctor_name || "-"}</div>
+                                    <div className="text-sm text-gray-600">{record.staff_name || "-"}</div>
                                     <div>
                                       <span
                                         className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -2467,20 +2469,20 @@ export function PatientProfileModal({
                                             : "Not Paid"}
                                       </span>
                                     </div>
-                                    <div className="flex gap-2 min-w-[200px]">
+                                    <div className="flex flex-col gap-1">
                                       <Button
                                         size="sm"
                                         onClick={() => handleUpdateCustomBillPayment(record)}
-                                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 whitespace-nowrap"
+                                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 whitespace-nowrap w-full"
                                       >
-                                        Mark Paid/Update Payment
+                                        Update Payment
                                       </Button>
                                       {record.isCustomBill && (
                                         <Button
                                           size="sm"
                                           variant="outline"
                                           onClick={() => handleDeleteCustomBill(record)}
-                                          className="text-xs px-2 py-1 whitespace-nowrap"
+                                          className="text-xs px-2 py-1 whitespace-nowrap w-full border-red-300 text-red-600 hover:bg-red-50"
                                         >
                                           Delete
                                         </Button>
@@ -2578,6 +2580,7 @@ export function PatientProfileModal({
         onBillCreated={() => {
           fetchBillingRecords()
           toast.success("Bill created successfully")
+          onPatientUpdated?.() // Refresh parent stats after bill creation
         }}
       />
 
@@ -2600,6 +2603,7 @@ export function PatientProfileModal({
             paid_amount: selectedAppointmentForPayment.paid_amount || 0,
             payment_method: selectedAppointmentForPayment.payment_method || "",
             notes: "",
+            doctor_name: selectedAppointmentForPayment.doctor_name,
           }}
           onPaymentUpdated={_handlePaymentUpdated2}
         />
@@ -2620,6 +2624,8 @@ export function PatientProfileModal({
               first_name: selectedCustomBillForPayment.patient_name?.split(" ")[0] || "",
               last_name: selectedCustomBillForPayment.patient_name?.split(" ").slice(1).join(" ") || "",
             },
+            doctor_name: selectedCustomBillForPayment.doctor_name,
+            staff_name: selectedCustomBillForPayment.staff_name,
           }}
           onPaymentUpdated={handleCustomBillPaymentUpdated}
           isCustomBill={true}

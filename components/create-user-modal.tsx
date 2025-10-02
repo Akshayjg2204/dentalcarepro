@@ -21,9 +21,18 @@ interface CreateUserModalProps {
   onClose: () => void
   onUserCreated: () => void
   currentUserRole?: "admin" | "doctor" | "staff" | "patient"
+  initialFirstName?: string
+  initialLastName?: string
 }
 
-export function CreateUserModal({ isOpen, onClose, onUserCreated, currentUserRole = "admin" }: CreateUserModalProps) {
+export function CreateUserModal({
+  isOpen,
+  onClose,
+  onUserCreated,
+  currentUserRole = "admin",
+  initialFirstName = "",
+  initialLastName = "",
+}: CreateUserModalProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [autoGenerate, setAutoGenerate] = useState(true)
   const [isCheckingUniqueness, setIsCheckingUniqueness] = useState(false)
@@ -53,8 +62,8 @@ export function CreateUserModal({ isOpen, onClose, onUserCreated, currentUserRol
 
   const resetForm = () => {
     setFormData({
-      firstName: "",
-      lastName: "",
+      firstName: initialFirstName,
+      lastName: initialLastName,
       email: "",
       password: "",
       phone: "",
@@ -69,31 +78,29 @@ export function CreateUserModal({ isOpen, onClose, onUserCreated, currentUserRol
     setExistingUserInfo(null)
     setIsCheckingUniqueness(false)
 
-    // Clear any pending timeout
     if (checkingTimeout) {
       clearTimeout(checkingTimeout)
       setCheckingTimeout(null)
     }
   }
 
-  // Load orphaned users when modal opens
   useEffect(() => {
     if (isOpen) {
       loadOrphanedUsers()
+      if (initialFirstName || initialLastName) {
+        setFormData((prev) => ({
+          ...prev,
+          firstName: initialFirstName,
+          lastName: initialLastName,
+        }))
+        if (initialFirstName && initialLastName) {
+          generateEmailAndPassword(initialFirstName, initialLastName)
+        }
+      }
     } else {
-      // Reset states when modal closes
       resetForm()
     }
-  }, [isOpen])
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (checkingTimeout) {
-        clearTimeout(checkingTimeout)
-      }
-    }
-  }, [checkingTimeout])
+  }, [isOpen, initialFirstName, initialLastName])
 
   const loadOrphanedUsers = async () => {
     setIsLoadingOrphaned(true)
@@ -108,13 +115,11 @@ export function CreateUserModal({ isOpen, onClose, onUserCreated, currentUserRol
       } else {
         console.log("Raw orphaned users data:", data)
 
-        // The function returns jsonb, handle different response formats
         let orphanedList = []
         if (data) {
           if (Array.isArray(data)) {
             orphanedList = data
           } else if (typeof data === "object" && data !== null) {
-            // Single object response, wrap in array
             orphanedList = [data]
           } else if (typeof data === "string") {
             try {
@@ -148,7 +153,6 @@ export function CreateUserModal({ isOpen, onClose, onUserCreated, currentUserRol
 
       if (result) {
         toast.success(`Successfully deleted orphaned auth user: ${email}`)
-        // Reload the list
         await loadOrphanedUsers()
       } else {
         toast.error(`Failed to delete ${email}. Please check the console for details.`)
@@ -165,7 +169,6 @@ export function CreateUserModal({ isOpen, onClose, onUserCreated, currentUserRol
     }
   }
 
-  // Check for existing users with same first and last name
   const checkNameUniqueness = async (firstName: string, lastName: string): Promise<boolean> => {
     if (!firstName.trim() || !lastName.trim()) {
       setNameExists(false)
@@ -199,7 +202,6 @@ export function CreateUserModal({ isOpen, onClose, onUserCreated, currentUserRol
           lastName: existingUsers[0].last_name,
           email: existingUsers[0].email,
         })
-        // Clear email and password if name exists
         setFormData((prev) => ({
           ...prev,
           email: "",
@@ -221,27 +223,22 @@ export function CreateUserModal({ isOpen, onClose, onUserCreated, currentUserRol
     }
   }
 
-  // Generate email and password only if name is unique
   const generateEmailAndPassword = async (firstName: string, lastName: string) => {
     if (!firstName.trim() || !lastName.trim()) return
 
-    // Clear any existing timeout
     if (checkingTimeout) {
       clearTimeout(checkingTimeout)
     }
 
-    // Set a timeout to prevent the checking state from getting stuck
     const timeout = setTimeout(() => {
       setIsCheckingUniqueness(false)
       console.warn("Name uniqueness check timed out")
-    }, 10000) // 10 second timeout
+    }, 10000)
 
     setCheckingTimeout(timeout)
 
-    // First check if name is unique
     const exists = await checkNameUniqueness(firstName, lastName)
 
-    // Clear the timeout since we got a response
     clearTimeout(timeout)
     setCheckingTimeout(null)
 
@@ -281,7 +278,6 @@ export function CreateUserModal({ isOpen, onClose, onUserCreated, currentUserRol
     const firstName = field === "firstName" ? value : formData.firstName
     const lastName = field === "lastName" ? value : formData.lastName
 
-    // Clear previous checking state and timeout
     if (checkingTimeout) {
       clearTimeout(checkingTimeout)
       setCheckingTimeout(null)
@@ -291,14 +287,12 @@ export function CreateUserModal({ isOpen, onClose, onUserCreated, currentUserRol
     setExistingUserInfo(null)
 
     if (firstName.trim() && lastName.trim()) {
-      // Debounce the API call
       const timeout = setTimeout(() => {
         generateEmailAndPassword(firstName, lastName)
-      }, 1000) // Increased debounce time to 1 second
+      }, 1000)
 
       setCheckingTimeout(timeout)
     } else {
-      // Clear validation state if names are incomplete
       setNameExists(false)
       setExistingUserInfo(null)
       if (autoGenerate) {
@@ -317,7 +311,6 @@ export function CreateUserModal({ isOpen, onClose, onUserCreated, currentUserRol
       const result = await cleanupOrphanedAuthUsers()
       if (result.success) {
         toast.success(result.message || "Cleanup completed successfully")
-        // Reload orphaned users list
         await loadOrphanedUsers()
       } else {
         toast.error(`Cleanup failed: ${result.error}`)
@@ -333,7 +326,6 @@ export function CreateUserModal({ isOpen, onClose, onUserCreated, currentUserRol
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Prevent submission if still checking
     if (isCheckingUniqueness) {
       toast.error("Please wait for name validation to complete")
       return
@@ -342,7 +334,6 @@ export function CreateUserModal({ isOpen, onClose, onUserCreated, currentUserRol
     setIsLoading(true)
 
     try {
-      // Validate required fields
       if (!formData.firstName.trim()) {
         throw new Error("First name is required")
       }
@@ -350,7 +341,6 @@ export function CreateUserModal({ isOpen, onClose, onUserCreated, currentUserRol
         throw new Error("Last name is required")
       }
 
-      // Final check for duplicate names before proceeding
       const nameAlreadyExists = await checkNameUniqueness(formData.firstName, formData.lastName)
       if (nameAlreadyExists) {
         throw new Error(
@@ -368,7 +358,6 @@ export function CreateUserModal({ isOpen, onClose, onUserCreated, currentUserRol
         throw new Error("Password must be at least 6 characters long")
       }
 
-      // Validate email format
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
       if (!emailRegex.test(formData.email.trim())) {
         throw new Error("Please enter a valid email address")
@@ -376,14 +365,12 @@ export function CreateUserModal({ isOpen, onClose, onUserCreated, currentUserRol
 
       const normalizedEmail = formData.email.trim().toLowerCase()
 
-      // Final check for email uniqueness in our database
       const { data: emailExists } = await supabase.from("users").select("email").eq("email", normalizedEmail).single()
 
       if (emailExists) {
         throw new Error("A user with this email already exists. Please use a different email.")
       }
 
-      // Check auth user status
       const authStatus = await checkAuthUserStatus(normalizedEmail)
       if (authStatus.exists) {
         throw new Error(
@@ -418,7 +405,6 @@ export function CreateUserModal({ isOpen, onClose, onUserCreated, currentUserRol
     } catch (error: any) {
       console.error("Create user error:", error)
 
-      // Handle specific errors
       let errorMessage = "Failed to create user"
       if (
         error.message?.includes("User already registered") ||
@@ -493,7 +479,6 @@ export function CreateUserModal({ isOpen, onClose, onUserCreated, currentUserRol
         </DialogHeader>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Form */}
           <div className="lg:col-span-2 space-y-6">
             <Alert>
               <CheckCircle className="h-4 w-4" />
@@ -510,7 +495,6 @@ export function CreateUserModal({ isOpen, onClose, onUserCreated, currentUserRol
               </AlertDescription>
             </Alert>
 
-            {/* Show error if name exists */}
             {nameExists && existingUserInfo && (
               <Alert className="border-red-500 bg-red-50">
                 <AlertCircle className="h-4 w-4 text-red-600" />
@@ -525,11 +509,9 @@ export function CreateUserModal({ isOpen, onClose, onUserCreated, currentUserRol
             )}
 
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Basic Information */}
               <div>
                 <h3 className="text-lg font-medium mb-4">Basic Information</h3>
 
-                {/* Auto-generate option */}
                 <div className="flex items-center space-x-2 mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
                   <Checkbox
                     id="autoGenerate"
@@ -698,7 +680,6 @@ export function CreateUserModal({ isOpen, onClose, onUserCreated, currentUserRol
                 </div>
               </div>
 
-              {/* Additional Information */}
               <div>
                 <h3 className="text-lg font-medium mb-4">Additional Information</h3>
 
@@ -749,7 +730,6 @@ export function CreateUserModal({ isOpen, onClose, onUserCreated, currentUserRol
                 </div>
               </div>
 
-              {/* Submit Button */}
               <div className="flex justify-end pt-4 border-t">
                 <div className="flex gap-3">
                   <Button
@@ -786,7 +766,6 @@ export function CreateUserModal({ isOpen, onClose, onUserCreated, currentUserRol
             </form>
           </div>
 
-          {/* Right Column - Orphaned Users Management */}
           <div className="lg:col-span-1 space-y-4">
             <div className="border rounded-lg p-4">
               <div className="flex items-center justify-between mb-4">

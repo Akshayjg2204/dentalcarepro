@@ -225,7 +225,6 @@ export default function AdminDashboard() {
     }
   }, [])
 
-  // Optimized initialization
   // useEffect(() => {
   //   const initializeDashboard = async () => {
   //     try {
@@ -255,7 +254,7 @@ export default function AdminDashboard() {
   }, [filterAppointments])
 
   // Optimized helper functions
-  const getAppointmentPayment = useCallback(
+  const getAppointmentPaymentLookup = useCallback(
     (appointmentId: string) => {
       return memoizedPaymentLookup.get(appointmentId)
     },
@@ -316,9 +315,13 @@ export default function AdminDashboard() {
     try {
       setSigningOut(true)
       await signOut()
+      toast.success("Signed out successfully")
       router.push("/login")
     } catch (error: any) {
-      toast.error("Failed to sign out")
+      console.error("Sign out error:", error)
+      toast.error("Signed out (with errors)")
+      router.push("/login")
+    } finally {
       setSigningOut(false)
     }
   }
@@ -528,9 +531,12 @@ export default function AdminDashboard() {
   }
 
   // Get payment for an appointment
-  const getAppointmentPaymentNav = (appointmentId: string) => {
-    return payments.find((payment) => payment.appointment_id === appointmentId)
-  }
+  const getAppointmentPayment = useCallback(
+    (appointmentId: string) => {
+      return payments.find((payment) => payment.appointment_id === appointmentId)
+    },
+    [payments],
+  )
 
   const handleCompleteAppointment = useCallback(
     (appointment: Appointment) => {

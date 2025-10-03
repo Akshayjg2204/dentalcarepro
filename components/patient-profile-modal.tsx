@@ -1139,25 +1139,40 @@ export function PatientProfileModal({
             </div>
           ) : profile ? (
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-              <TabsList className="grid w-full grid-cols-5 bg-gray-50">
-                <TabsTrigger value="profile" className="flex items-center space-x-2">
-                  <User className="w-4 h-4" />
+              <TabsList className="w-full bg-gray-50 h-auto p-1 flex sm:grid sm:grid-cols-5 overflow-x-auto">
+                <TabsTrigger
+                  value="profile"
+                  className="flex items-center space-x-2 whitespace-nowrap px-3 py-2 text-xs sm:text-sm"
+                >
+                  <User className="w-4 h-4 flex-shrink-0" />
                   <span>Basic Information</span>
                 </TabsTrigger>
-                <TabsTrigger value="appointments" className="flex items-center space-x-2">
-                  <Calendar className="w-4 h-4" />
+                <TabsTrigger
+                  value="appointments"
+                  className="flex items-center space-x-2 whitespace-nowrap px-3 py-2 text-xs sm:text-sm"
+                >
+                  <Calendar className="w-4 h-4 flex-shrink-0" />
                   <span>Appointments</span>
                 </TabsTrigger>
-                <TabsTrigger value="treatments" className="flex items-center space-x-2">
-                  <Activity className="w-4 h-4" />
+                <TabsTrigger
+                  value="treatments"
+                  className="flex items-center space-x-2 whitespace-nowrap px-3 py-2 text-xs sm:text-sm"
+                >
+                  <Activity className="w-4 h-4 flex-shrink-0" />
                   <span>Treatment</span>
                 </TabsTrigger>
-                <TabsTrigger value="documents" className="flex items-center space-x-2">
-                  <FileText className="w-4 h-4" />
+                <TabsTrigger
+                  value="documents"
+                  className="flex items-center space-x-2 whitespace-nowrap px-3 py-2 text-xs sm:text-sm"
+                >
+                  <FileText className="w-4 h-4 flex-shrink-0" />
                   <span>Documents</span>
                 </TabsTrigger>
-                <TabsTrigger value="billing" className="flex items-center space-x-2">
-                  <CreditCard className="w-4 h-4" />
+                <TabsTrigger
+                  value="billing"
+                  className="flex items-center space-x-2 whitespace-nowrap px-3 py-2 text-xs sm:text-sm"
+                >
+                  <CreditCard className="w-4 h-4 flex-shrink-0" />
                   <span>Billing</span>
                 </TabsTrigger>
               </TabsList>

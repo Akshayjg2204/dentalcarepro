@@ -413,7 +413,7 @@ export function PatientDashboard() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white border-b">
-        <div className="container mx-auto px-6 py-4">
+        <div className="container mx-auto px-4 sm:px-6 py-4 max-w-7xl">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <Button
@@ -438,7 +438,7 @@ export function PatientDashboard() {
         </div>
       </div>
 
-      <div className="container mx-auto px-6 py-6 space-y-6">
+      <div className="container mx-auto px-4 sm:px-6 py-6 space-y-6 max-w-7xl">
         <div className="grid gap-6 md:grid-cols-3">
           <Card className="bg-green-50 border-green-200">
             <CardContent className="p-6">
@@ -528,30 +528,36 @@ export function PatientDashboard() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
-            <TabsTrigger value="upcoming" className="flex items-center gap-2">
+          <TabsList className="grid w-full grid-cols-6 md:grid-cols-6 overflow-x-auto flex-nowrap">
+            <TabsTrigger value="upcoming" className="flex items-center gap-2 whitespace-nowrap">
               <Calendar className="h-4 w-4 text-blue-600" />
-              Upcoming
+              <span className="hidden sm:inline">Upcoming</span>
+              <span className="sm:hidden">Up</span>
             </TabsTrigger>
-            <TabsTrigger value="history" className="flex items-center gap-2">
+            <TabsTrigger value="history" className="flex items-center gap-2 whitespace-nowrap">
               <History className="h-4 w-4 text-green-600" />
-              History
+              <span className="hidden sm:inline">History</span>
+              <span className="sm:hidden">His</span>
             </TabsTrigger>
-            <TabsTrigger value="treatments" className="flex items-center gap-2">
+            <TabsTrigger value="treatments" className="flex items-center gap-2 whitespace-nowrap">
               <Activity className="h-4 w-4 text-purple-600" />
-              Treatments
+              <span className="hidden sm:inline">Treatments</span>
+              <span className="sm:hidden">Tre</span>
             </TabsTrigger>
-            <TabsTrigger value="payments" className="flex items-center gap-2">
+            <TabsTrigger value="payments" className="flex items-center gap-2 whitespace-nowrap">
               <Receipt className="h-4 w-4 text-orange-600" />
-              Payments
+              <span className="hidden sm:inline">Payments</span>
+              <span className="sm:hidden">Pay</span>
             </TabsTrigger>
-            <TabsTrigger value="documents" className="flex items-center gap-2">
+            <TabsTrigger value="documents" className="flex items-center gap-2 whitespace-nowrap">
               <FileText className="h-4 w-4 text-indigo-600" />
-              Documents
+              <span className="hidden sm:inline">Documents</span>
+              <span className="sm:hidden">Doc</span>
             </TabsTrigger>
-            <TabsTrigger value="profile" className="flex items-center gap-2">
+            <TabsTrigger value="profile" className="flex items-center gap-2 whitespace-nowrap">
               <User className="h-4 w-4 text-pink-600" />
-              Profile
+              <span className="hidden sm:inline">Profile</span>
+              <span className="sm:hidden">Pro</span>
             </TabsTrigger>
           </TabsList>
 
@@ -565,10 +571,10 @@ export function PatientDashboard() {
                 <div className="space-y-4">
                   {upcomingAppointments.map((appointment) => (
                     <div key={appointment.id} className="p-4 border rounded-lg space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                          <Calendar className="h-5 w-5 text-blue-600" />
-                          <div>
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div className="flex items-start space-x-4">
+                          <Calendar className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                          <div className="min-w-0 flex-1">
                             <p className="font-medium">{appointment.appointment_type}</p>
                             <p className="text-sm text-gray-600">
                               {new Date(appointment.appointment_date).toLocaleDateString()} at{" "}
@@ -581,13 +587,15 @@ export function PatientDashboard() {
                             )}
                           </div>
                         </div>
-                        <Badge className={getStatusColor(appointment.status)}>{appointment.status}</Badge>
+                        <Badge className={`${getStatusColor(appointment.status)} whitespace-nowrap flex-shrink-0`}>
+                          {appointment.status}
+                        </Badge>
                       </div>
-                      <div className="flex gap-3 pt-2">
+                      <div className="flex flex-col sm:flex-row gap-3 pt-2">
                         <Button
                           variant="outline"
                           size="sm"
-                          className="flex items-center gap-2 bg-transparent"
+                          className="flex items-center justify-center gap-2 bg-transparent w-full sm:w-auto"
                           onClick={() => {
                             // Open Google Maps with clinic address
                             window.open("https://maps.google.com/?q=dental+clinic+near+me", "_blank")
@@ -599,7 +607,7 @@ export function PatientDashboard() {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="flex items-center gap-2 bg-transparent"
+                          className="flex items-center justify-center gap-2 bg-transparent w-full sm:w-auto"
                           onClick={() => {
                             // Call clinic phone number
                             window.open("tel:+1234567890", "_self")
@@ -637,15 +645,18 @@ export function PatientDashboard() {
                 ) : (
                   <div className="space-y-4">
                     {pastAppointments.map((appointment) => (
-                      <div key={appointment.id} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div className="flex items-center space-x-4">
-                          <div className="flex items-center space-x-2">
+                      <div
+                        key={appointment.id}
+                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-lg"
+                      >
+                        <div className="flex items-start space-x-4 min-w-0 flex-1">
+                          <div className="flex items-center space-x-2 flex-shrink-0">
                             <Calendar className="h-4 w-4 text-gray-400" />
                             <span className="text-sm text-gray-600">
                               {new Date(appointment.appointment_date).toLocaleDateString()}
                             </span>
                           </div>
-                          <div>
+                          <div className="min-w-0 flex-1">
                             <p className="font-medium">{appointment.appointment_type}</p>
                             <p className="text-sm text-gray-600">
                               {new Date(appointment.appointment_date).toLocaleDateString()} at{" "}
@@ -659,7 +670,9 @@ export function PatientDashboard() {
                             {appointment.notes && <p className="text-sm text-gray-500 mt-1">{appointment.notes}</p>}
                           </div>
                         </div>
-                        <Badge className={getStatusColor(appointment.status)}>{appointment.status}</Badge>
+                        <Badge className={`${getStatusColor(appointment.status)} whitespace-nowrap flex-shrink-0`}>
+                          {appointment.status}
+                        </Badge>
                       </div>
                     ))}
                     {pastAppointments.length === 0 && (
@@ -694,9 +707,12 @@ export function PatientDashboard() {
                 ) : (
                   <div className="space-y-4">
                     {treatments.map((treatment) => (
-                      <div key={treatment.id} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div className="flex items-center space-x-4">
-                          <div className="flex items-center space-x-2">
+                      <div
+                        key={treatment.id}
+                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-lg"
+                      >
+                        <div className="flex items-start space-x-4 min-w-0 flex-1">
+                          <div className="flex items-center space-x-2 flex-shrink-0">
                             <Calendar className="h-4 w-4 text-gray-400" />
                             <span className="text-sm text-gray-600">
                               {treatment.treatment_date
@@ -704,9 +720,9 @@ export function PatientDashboard() {
                                 : new Date(treatment.created_at).toLocaleDateString()}
                             </span>
                           </div>
-                          <div>
+                          <div className="min-w-0 flex-1">
                             <p className="font-medium">{treatment.treatment_name}</p>
-                            <div className="flex items-center space-x-4 text-sm text-gray-600">
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
                               <span>Cost: ₹{treatment.cost.toFixed(2)}</span>
                               {treatment.teeth_numbers && (
                                 <>
@@ -718,7 +734,9 @@ export function PatientDashboard() {
                             {treatment.notes && <p className="text-sm text-gray-500 mt-1">{treatment.notes}</p>}
                           </div>
                         </div>
-                        <Badge className={getStatusColor(treatment.status)}>{treatment.status}</Badge>
+                        <Badge className={`${getStatusColor(treatment.status)} whitespace-nowrap flex-shrink-0`}>
+                          {treatment.status}
+                        </Badge>
                       </div>
                     ))}
                     {treatments.length === 0 && (
@@ -795,12 +813,12 @@ export function PatientDashboard() {
           <TabsContent value="documents" className="space-y-6">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div>
                     <CardTitle>Upload Documents</CardTitle>
                     <CardDescription>Upload and manage your medical documents</CardDescription>
                   </div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center">
                     <input
                       type="file"
                       id="document-upload"
@@ -812,7 +830,7 @@ export function PatientDashboard() {
                     <Button
                       onClick={() => document.getElementById("document-upload")?.click()}
                       disabled={uploadingDocument}
-                      className="bg-blue-600 hover:bg-blue-700"
+                      className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
                     >
                       {uploadingDocument ? (
                         <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -833,24 +851,27 @@ export function PatientDashboard() {
                 ) : documents.length > 0 ? (
                   <div className="space-y-4">
                     {documents.map((document) => (
-                      <div key={document.id} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div className="flex items-center space-x-4">
-                          <span className="text-2xl">{getFileIcon(document.mime_type)}</span>
-                          <div>
-                            <p className="font-medium">{document.file_name}</p>
-                            <div className="flex items-center gap-4 text-sm text-gray-600">
+                      <div
+                        key={document.id}
+                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-lg"
+                      >
+                        <div className="flex items-start space-x-3 min-w-0 flex-1">
+                          <span className="text-2xl flex-shrink-0">{getFileIcon(document.mime_type)}</span>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium truncate">{document.file_name}</p>
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-600">
                               <span>{formatFileSize(document.file_size)}</span>
                               <span>•</span>
                               <span>Uploaded {new Date(document.upload_date).toLocaleDateString()}</span>
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center gap-2 flex-shrink-0">
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => handleDownloadDocument(document)}
-                            className="h-8 w-8 p-0"
+                            className="h-9 w-9 p-0"
                           >
                             <Download className="h-4 w-4" />
                           </Button>
@@ -859,7 +880,7 @@ export function PatientDashboard() {
                             size="sm"
                             onClick={() => handleDeleteDocument(document.id, document.file_name)}
                             disabled={deletingDocuments.has(document.id)}
-                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            className="h-9 w-9 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
                           >
                             {deletingDocuments.has(document.id) ? (
                               <Loader2 className="h-4 w-4 animate-spin" />

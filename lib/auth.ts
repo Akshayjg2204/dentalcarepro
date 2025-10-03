@@ -68,7 +68,12 @@ export async function signIn(email: string, password: string) {
 export async function signOut() {
   clearCache()
   const { error } = await supabase.auth.signOut()
-  if (error) throw error
+  // Don't throw error if it's just a refresh token issue - user is effectively signed out
+  if (error && !error.message?.includes("refresh") && !error.message?.includes("Refresh Token")) {
+    throw error
+  }
+  // Always clear local session regardless of API response
+  return { success: true }
 }
 
 export async function getCurrentUser() {

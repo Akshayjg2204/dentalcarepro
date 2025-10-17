@@ -2274,14 +2274,16 @@ export function PatientProfileModal({
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                         {documents.map((document) => (
                           <div key={document.id} className="border rounded-lg p-3">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <h4 className="font-semibold">{document.file_name}</h4>
+                            <div className="flex flex-col gap-3">
+                              <div className="min-w-0 flex-1">
+                                <h4 className="font-semibold truncate" title={document.file_name}>
+                                  {document.file_name}
+                                </h4>
                                 <p className="text-sm text-gray-500">
                                   Uploaded: {new Date(document.created_at).toLocaleDateString()}
                                 </p>
                               </div>
-                              <div className="flex items-center space-x-2">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 {isImageFile(document.file_type) && (
                                   <Button
                                     variant="ghost"

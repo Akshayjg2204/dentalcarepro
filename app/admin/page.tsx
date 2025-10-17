@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { CreateUserModal } from "@/components/create-user-modal"
 import { signOut, updateUserRole, deleteUser, cleanupOrphanedAuthUsers } from "@/lib/auth"
 import { getAllAppointments, updateAppointmentStatus, type Appointment } from "@/lib/appointments"
-import { getAllPayments, getPaymentByAppointmentId, type Payment } from "@/lib/payments"
+import { getAllPayments, getPaymentByAppointmentId, type Payment, getDuePayments } from "@/lib/payments"
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
 import { useAuth } from "@/lib/auth-context"
@@ -21,15 +21,8 @@ import {
   UserCheck,
   Target,
   RefreshCw,
-} from "lucide-react"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
-import {
+  CreditCard,
+  Stethoscope,
   ArrowLeft,
   LogOut,
   Calendar,
@@ -39,9 +32,14 @@ import {
   FileText,
   Settings,
   Plus,
-  CreditCard,
-  Stethoscope,
 } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Badge } from "@/components/ui/badge"
 import { CompleteAppointmentModal } from "@/components/complete-appointment-modal"
 import { getPaymentStats } from "@/lib/payments"
 import { EmergencyAppointmentModal } from "@/components/emergency-appointment-modal"
@@ -108,6 +106,11 @@ export default function AdminDashboard() {
   })
 
   const [highlightedAppointmentId, setHighlightedAppointmentId] = useState<string | null>(null)
+
+  // State for new features
+  const [duePayments, setDuePayments] = useState<Payment[]>([])
+  const [isDuePaymentsExpanded, setIsDuePaymentsExpanded] = useState(false)
+  const [isDuePaymentsModalOpen, setIsDuePaymentsModalOpen] = useState(false) // Added this line
 
   const searchParams = useSearchParams()
 
@@ -225,20 +228,15 @@ export default function AdminDashboard() {
     }
   }, [])
 
-  // useEffect(() => {
-  //   const initializeDashboard = async () => {
-  //     try {
-  //       await checkAuth()
-
-  //       // Fetch data in parallel for better performance
-  //       await Promise.all([fetchUsers(), fetchAppointments(), fetchPaymentStats(), fetchPayments()])
-  //     } catch (error) {
-  //       console.error("Dashboard initialization error:", error)
-  //     }
-  //   }
-
-  //   initializeDashboard()
-  // }, [fetchUsers, fetchAppointments, fetchPaymentStats, fetchPayments])
+  // New fetch function for due payments
+  const fetchDuePayments = useCallback(async () => {
+    try {
+      const duePaymentsData = await getDuePayments()
+      setDuePayments(duePaymentsData)
+    } catch (error: any) {
+      console.error("Failed to fetch due payments:", error)
+    }
+  }, [])
 
   // Debounced filter effects
   useEffect(() => {
@@ -260,24 +258,6 @@ export default function AdminDashboard() {
     },
     [memoizedPaymentLookup],
   )
-
-  // const checkAuth = async () => {
-  //   try {
-  //     const user = await getCurrentUser()
-  //     if (!user || user.profile.role !== "admin") {
-  //       toast.error("Access denied. Admin privileges required.")
-  //       router.push("/login")
-  //       return
-  //     }
-  //     setCurrentUser(user)
-  //   } catch (error: any) {
-  //     console.error("Auth check error:", error)
-  //     toast.error("Authentication failed")
-  //     router.push("/login")
-  //   } finally {
-  //     setIsLoading(false)
-  //   }
-  // }
 
   useEffect(() => {
     if (loading || signingOut) return
@@ -301,15 +281,25 @@ export default function AdminDashboard() {
     // Initialize dashboard data
     const initializeDashboard = async () => {
       try {
-        // Fetch data in parallel for better performance
-        await Promise.all([fetchUsers(), fetchAppointments(), fetchPaymentStats(), fetchPayments()])
+        await Promise.all([fetchUsers(), fetchAppointments(), fetchPaymentStats(), fetchPayments(), fetchDuePayments()])
       } catch (error) {
         console.error("Dashboard initialization error:", error)
       }
     }
 
     initializeDashboard()
-  }, [user, profile, loading, signingOut, router])
+  }, [
+    user,
+    profile,
+    loading,
+    signingOut,
+    router,
+    fetchUsers,
+    fetchAppointments,
+    fetchPaymentStats,
+    fetchPayments,
+    fetchDuePayments,
+  ])
 
   const handleSignOut = async () => {
     try {
@@ -329,7 +319,7 @@ export default function AdminDashboard() {
   const handleRefreshAppointments = useCallback(async () => {
     setIsRefreshing(true)
     try {
-      await Promise.all([fetchAppointments(), fetchPaymentStats(), fetchPayments()])
+      await Promise.all([fetchAppointments(), fetchPaymentStats(), fetchPayments(), fetchDuePayments()])
       toast.success("Appointments refreshed successfully!")
     } catch (error: any) {
       console.error("Failed to refresh appointments:", error)
@@ -337,7 +327,7 @@ export default function AdminDashboard() {
     } finally {
       setIsRefreshing(false)
     }
-  }, [fetchAppointments, fetchPaymentStats, fetchPayments])
+  }, [fetchAppointments, fetchPaymentStats, fetchPayments, fetchDuePayments])
 
   const handleUserCreated = useCallback(() => {
     fetchUsers()
@@ -556,23 +546,26 @@ export default function AdminDashboard() {
     fetchAppointments()
   }, [fetchAppointments])
 
-  const handleUpdatePayment = useCallback(async (appointment: Appointment) => {
-    try {
-      const payment = await getPaymentByAppointmentId(appointment.id)
-      if (payment) {
-        setUpdatePaymentModal({
-          isOpen: true,
-          payment,
-          appointment,
-        })
-      } else {
-        toast.error("No payment record found for this appointment")
+  const handleUpdatePayment = useCallback(
+    async (appointment: Appointment) => {
+      try {
+        const payment = await getPaymentByAppointmentId(appointment.id)
+        if (payment) {
+          setUpdatePaymentModal({
+            isOpen: true,
+            payment,
+            appointment,
+          })
+        } else {
+          toast.error("No payment record found for this appointment")
+        }
+      } catch (error) {
+        console.error("Error fetching payment:", error)
+        toast.error("Failed to load payment information")
       }
-    } catch (error) {
-      console.error("Error fetching payment:", error)
-      toast.error("Failed to load payment information")
-    }
-  }, [])
+    },
+    [getPaymentByAppointmentId],
+  )
 
   const handlePaymentUpdated = useCallback(
     (updatedPayment: Payment) => {
@@ -587,27 +580,6 @@ export default function AdminDashboard() {
     },
     [fetchAppointments],
   )
-
-  // useEffect(() => {
-  //   const urlParams = new URLSearchParams(window.location.search)
-  //   const tabParam = urlParams.get("tab")
-  //   if (tabParam && ["overview", "appointments", "patients", "leads", "users"].includes(tabParam)) {
-  //     setActiveTab(tabParam)
-  //   }
-  // }, [])
-
-  // The useSearchParams hook above now handles all URL parameter logic
-
-  // if (isLoading) {
-  //   return (
-  //     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-  //       <div className="text-center">
-  //         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-  //         <p className="text-gray-600">Loading dashboard...</p>
-  //       </div>
-  //     </div>
-  //   )
-  // }
 
   if (loading) {
     return (
@@ -820,6 +792,20 @@ export default function AdminDashboard() {
                       <div className="text-center">
                         <p className="font-medium">Walk-in</p>
                         <p className="text-xs text-gray-500 hidden sm:block">Schedule urgent care</p>
+                      </div>
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      className="h-16 sm:h-20 flex-col space-y-1 sm:space-y-2 bg-transparent w-full text-xs sm:text-sm col-span-2"
+                      onClick={() => setIsDuePaymentsModalOpen(true)}
+                    >
+                      <CreditCard className="w-5 h-5 sm:w-6 sm:h-6 text-red-600" />
+                      <div className="text-center">
+                        <p className="font-medium">Payment Due</p>
+                        <p className="text-xs text-gray-500 hidden sm:block">
+                          {duePayments.length} outstanding payment{duePayments.length !== 1 ? "s" : ""}
+                        </p>
                       </div>
                     </Button>
                   </div>
@@ -1659,6 +1645,78 @@ export default function AdminDashboard() {
           setRescheduleModalAppointment(null)
         }}
       />
+
+      {isDuePaymentsModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+              <CardTitle className="flex items-center">
+                <CreditCard className="w-5 h-5 mr-2 text-red-600" />
+                Payment Due
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsDuePaymentsModalOpen(false)}
+                className="h-8 w-8 p-0"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {duePayments.length > 0 ? (
+                <div className="space-y-3">
+                  {duePayments.map((payment) => (
+                    <div key={payment.id} className="p-4 bg-red-50 rounded-lg border border-red-200">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm">
+                            {payment.appointment?.patient?.first_name} {payment.appointment?.patient?.last_name}
+                          </p>
+                          <p className="text-xs text-gray-600 truncate">{payment.appointment?.patient?.email}</p>
+                        </div>
+                        <Badge className="bg-red-100 text-red-800 text-xs ml-2 flex-shrink-0">
+                          Rs {(payment.bill_amount - payment.paid_amount).toFixed(2)}
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 text-xs mb-3">
+                        <div>
+                          <p className="text-gray-600">Bill Amount</p>
+                          <p className="font-medium">Rs {payment.bill_amount.toFixed(2)}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-600">Paid Amount</p>
+                          <p className="font-medium">Rs {payment.paid_amount.toFixed(2)}</p>
+                        </div>
+                      </div>
+                      {payment.appointment?.appointment_type && (
+                        <p className="text-xs text-gray-600 mb-3">{payment.appointment.appointment_type}</p>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          handleUpdatePayment(payment.appointment!)
+                          setIsDuePaymentsModalOpen(false)
+                        }}
+                        className="w-full text-xs h-8 border-red-300 text-red-700 hover:bg-red-100"
+                      >
+                        <CreditCard className="w-3 h-3 mr-1" />
+                        Update Payment
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <CreditCard className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+                  <p className="text-gray-600">No outstanding payments</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }

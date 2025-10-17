@@ -558,3 +558,71 @@ export async function createCustomBill(
 }
 
 export const getPaymentsByPatientId = getPatientPayments
+
+export async function getDuePayments(): Promise<Payment[]> {
+  try {
+    const { data, error } = await supabase
+      .from("payments")
+      .select(`
+        *,
+        appointment:appointments(
+          id,
+          appointment_date,
+          appointment_time,
+          appointment_type,
+          status,
+          patient:users!appointments_patient_id_fkey(
+            id,
+            first_name,
+            last_name,
+            email,
+            phone
+          )
+        )
+      `)
+      .order("created_at", { ascending: false })
+
+    if (error) {
+      console.error("Error fetching due payments:", error)
+      return []
+    }
+
+    // Filter payments where bill_amount > paid_amount (outstanding balance exists)
+    const duePayments = (data || []).filter((payment) => payment.bill_amount > payment.paid_amount)
+
+    return duePayments.map((payment) => ({
+      id: payment.id,
+      appointment_id: payment.appointment_id,
+      patient_id: payment.patient_id,
+      bill_amount: payment.bill_amount,
+      paid_amount: payment.paid_amount,
+      payment_status: payment.payment_status,
+      payment_method: payment.payment_method,
+      payment_date: payment.payment_date,
+      notes: payment.notes,
+      created_at: payment.created_at,
+      updated_at: payment.updated_at,
+      appointment: payment.appointment
+        ? {
+            id: payment.appointment.id,
+            appointment_date: payment.appointment.appointment_date,
+            appointment_time: payment.appointment.appointment_time,
+            appointment_type: payment.appointment.appointment_type,
+            status: payment.appointment.status,
+            patient: payment.appointment.patient
+              ? {
+                  id: payment.appointment.patient.id,
+                  first_name: payment.appointment.patient.first_name,
+                  last_name: payment.appointment.patient.last_name,
+                  email: payment.appointment.patient.email,
+                  phone: payment.appointment.patient.phone,
+                }
+              : undefined,
+          }
+        : undefined,
+    }))
+  } catch (error) {
+    console.error("Error in getDuePayments:", error)
+    return []
+  }
+}

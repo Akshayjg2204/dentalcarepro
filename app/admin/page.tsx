@@ -111,6 +111,7 @@ export default function AdminDashboard() {
   const [duePayments, setDuePayments] = useState<Payment[]>([])
   const [isDuePaymentsExpanded, setIsDuePaymentsExpanded] = useState(false)
   const [isDuePaymentsModalOpen, setIsDuePaymentsModalOpen] = useState(false) // Added this line
+  const [duePaymentsSearchTerm, setDuePaymentsSearchTerm] = useState("")
 
   const searchParams = useSearchParams()
 
@@ -258,6 +259,21 @@ export default function AdminDashboard() {
     },
     [memoizedPaymentLookup],
   )
+
+  const filteredDuePayments = useMemo(() => {
+    if (!duePaymentsSearchTerm.trim()) {
+      return duePayments
+    }
+
+    const searchLower = duePaymentsSearchTerm.toLowerCase()
+    return duePayments.filter((payment) => {
+      const firstName = payment.appointment?.patient?.first_name?.toLowerCase() || ""
+      const lastName = payment.appointment?.patient?.last_name?.toLowerCase() || ""
+      const email = payment.appointment?.patient?.email?.toLowerCase() || ""
+
+      return firstName.includes(searchLower) || lastName.includes(searchLower) || email.includes(searchLower)
+    })
+  }, [duePayments, duePaymentsSearchTerm])
 
   useEffect(() => {
     if (loading || signingOut) return
@@ -1664,9 +1680,19 @@ export default function AdminDashboard() {
               </Button>
             </CardHeader>
             <CardContent>
-              {duePayments.length > 0 ? (
+              <div className="mb-4 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Input
+                  placeholder="Search by patient name or email..."
+                  value={duePaymentsSearchTerm}
+                  onChange={(e) => setDuePaymentsSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+
+              {filteredDuePayments.length > 0 ? (
                 <div className="space-y-3">
-                  {duePayments.map((payment) => (
+                  {filteredDuePayments.map((payment) => (
                     <div key={payment.id} className="p-4 bg-red-50 rounded-lg border border-red-200">
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex-1 min-w-0">
@@ -1710,7 +1736,9 @@ export default function AdminDashboard() {
               ) : (
                 <div className="text-center py-8">
                   <CreditCard className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-                  <p className="text-gray-600">No outstanding payments</p>
+                  <p className="text-gray-600">
+                    {duePaymentsSearchTerm ? "No payments match your search" : "No outstanding payments"}
+                  </p>
                 </div>
               )}
             </CardContent>

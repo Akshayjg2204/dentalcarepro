@@ -1,166 +1,105 @@
-# Dental Clinic Management System
+# 🦷 DentalCare Pro — Clinic Management System
 
-A comprehensive dental clinic management application built with Next.js, Supabase, and modern web technologies.
+<div align="center">
+  <p align="center">
+    <b>An enterprise-grade dental clinic operations and practice management platform.</b><br>
+    Engineered with Next.js 14, React 18, TypeScript, Supabase (PostgreSQL), Tailwind CSS, and Radix UI.
+  </p>
 
-## Features
+  <p align="center">
+    <a href="https://github.com/Akshayjg2204/dentalcarepro"><img src="https://img.shields.io/badge/GitHub-Repository-181717?style=for-the-badge&logo=github&logoColor=white" alt="Repository" /></a>
+  </p>
 
-- **Patient Management**: Complete patient records and profiles
-- **Appointment Scheduling**: Advanced booking system with time slots
-- **Payment Tracking**: Invoice generation and payment history
-- **Staff Dashboard**: Role-based access for doctors and staff
-- **Admin Panel**: Complete clinic management tools
-- **Real-time Updates**: Live notifications and updates
-- **Emergency Appointments**: Priority booking system
+  <p align="center">
+    <img src="https://img.shields.io/badge/Next.js_14-000000?style=flat-square&logo=nextdotjs&logoColor=white" />
+    <img src="https://img.shields.io/badge/React_18-61DAFB?style=flat-square&logo=react&logoColor=black" />
+    <img src="https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white" />
+    <img src="https://img.shields.io/badge/Supabase-3ECF8E?style=flat-square&logo=supabase&logoColor=white" />
+    <img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white" />
+    <img src="https://img.shields.io/badge/Tailwind_CSS-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white" />
+    <img src="https://img.shields.io/badge/Radix_UI-161618?style=flat-square&logo=radixui&logoColor=white" />
+  </p>
+</div>
 
-## Tech Stack
+---
 
-- **Frontend**: Next.js 14, React, TypeScript
-- **Styling**: Tailwind CSS, Radix UI
-- **Database**: Supabase (PostgreSQL)
-- **Authentication**: Supabase Auth
-- **Deployment**: Netlify
+## 🌟 Platform Capabilities
 
-## Getting Started
+- **📋 Patient Health Records (EHR):** Complete digital health profiles, treatment history logs, dental charting notes, contact data, and active medication tracking.
+- **🗓️ Intelligent Appointment Scheduling:** Calendar scheduling with multi-dentist slot availability, time-block collision detection, procedure-length estimation, and status updates (Pending, Confirmed, Completed, Cancelled).
+- **🚨 Emergency Priority Triage:** Dedicated urgent triage booking workflow enabling rapid placement for acute dental emergencies without disrupting routine appointments.
+- **💳 Billing & Invoice Management:** Automated cost generation, printable receipts, payment method tracking (Cash, Card, Insurance), and outstanding balance alerts.
+- **👥 Role-Based Staff Dashboards:** Distinct permission boundaries and tailored views for Administrators, Dentists, Dental Assistants, and Front-Desk Receptionists.
+- **⚙️ Clinic Roster & Availability Engine:** Configurable working hours, holiday schedules, break windows, and room allocation rules.
+
+---
+
+## 🛠️ Tech Stack
+
+| Technology | Purpose |
+| :--- | :--- |
+| **Next.js 14** | Full-stack React framework utilizing App Router and Server Components |
+| **TypeScript** | End-to-end static typing across database schemas, UI components, and API routes |
+| **Supabase** | Backend-as-a-Service providing PostgreSQL, Row-Level Security (RLS), and Authentication |
+| **PostgreSQL** | Relational data persistence with stored procedures and relational triggers |
+| **Tailwind CSS** | Clean utility-first clinical design system with custom medical color palette |
+| **Radix UI** | Accessible, headless primitives (Dialogs, Dropdowns, Popovers, Tabs, Accordions) |
+| **Lucide React** | Medical and operational vector iconography |
+| **Sonner** | Accessible toast notification system for instant action feedback |
+
+---
+
+## 🗄️ Database Architecture & Migrations
+
+The platform includes modular PostgreSQL migration scripts located in the [`scripts/`](./scripts) directory to set up or replicate the database schema on any Supabase instance:
+
+1. `setup-database-v7.sql` — Core database tables, extensions, and ENUM types
+2. `setup-appointments.sql` — Appointment scheduling rules and status triggers
+3. `setup-payments.sql` — Invoices, payments, and billing ledger tables
+4. `setup-clinic-settings.sql` — Clinic metadata, opening hours, and configuration
+5. `setup-clinic-availability.sql` — Time slot generator and doctor roster availability
+6. `setup-patient-records.sql` — Extended patient treatment logs and medical history
+
+---
+
+## 🚀 Getting Started Locally
 
 ### Prerequisites
+- Node.js 18+ or 20+
+- npm, pnpm, or yarn
+- A Supabase account (or local PostgreSQL instance)
 
-- Node.js 18+ 
-- npm or yarn
-- Supabase account
+```bash
+# 1. Clone the repository
+git clone https://github.com/Akshayjg2204/dentalcarepro.git
+cd dentalcarepro
 
-### Installation
-
-1. Clone the repository:
-\`\`\`bash
-git clone https://github.com/YOUR_USERNAME/dental-clinic-management.git
-cd dental-clinic-management
-\`\`\`
-
-2. Install dependencies:
-\`\`\`bash
+# 2. Install dependencies
 npm install
-\`\`\`
 
-3. Set up environment variables:
-Copy `.env.local.example` to `.env.local` and fill in your Supabase credentials:
-\`\`\`env
+# 3. Configure environment variables
+cp .env.local.example .env.local
+```
+
+Populate `.env.local` with your Supabase credentials:
+```env
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-\`\`\`
+```
 
-4. Set up the database:
-Run the SQL scripts in your Supabase dashboard in this order:
-- `scripts/setup-database-v7.sql`
-- `scripts/setup-appointments.sql`
-- `scripts/setup-payments.sql`
-- `scripts/setup-clinic-settings.sql`
-- `scripts/setup-clinic-availability.sql`
-- `scripts/update-time-slots.sql`
-- `scripts/setup-patient-records.sql`
-- `scripts/remove-lifestyle-columns.sql`
-- `scripts/add-google-maps-link.sql`
-- `scripts/add-outstanding-balance-column.sql`
-- `scripts/add-social-media-columns.sql`
-- `scripts/fix-payments-columns.sql`
-- `scripts/add-clinic-settings-columns.sql`
-- `scripts/add-medical-fields-to-users.sql`
-- `scripts/add-priority-column-to-appointments.sql`
-- `scripts/setup-appointment-types.sql`
-
-5. Run the development server:
-\`\`\`bash
+```bash
+# 4. Start development server
 npm run dev
-\`\`\`
+```
 
-Open [http://localhost:3000](http://localhost:3000) to view the application.
+Open [http://localhost:3000](http://localhost:3000) in your browser to view the application.
 
-## Deployment
+---
 
-### Netlify Deployment
+## 👨‍💻 Author
 
-1. **Push to GitHub**: Make sure your code is pushed to a GitHub repository
-2. **Connect to Netlify**: 
-   - Go to [netlify.com](https://netlify.com)
-   - Click "New site from Git"
-   - Select your repository
-   - Build settings are configured in `netlify.toml`
-3. **Environment Variables**: Add your Supabase credentials in Netlify dashboard
-4. **Deploy**: Netlify will automatically build and deploy
-
-### Build Commands
-
-\`\`\`bash
-# Build for production
-npm run build
-
-# Start production server
-npm start
-\`\`\`
-
-## Project Structure
-
-\`\`\`
-├── app/                    # Next.js app directory
-│   ├── admin/             # Admin panel pages
-│   ├── appointments/      # Appointment management
-│   ├── dashboard/         # User dashboards
-│   ├── login/            # Authentication
-│   └── payments/         # Payment management
-├── components/           # Reusable React components
-├── lib/                 # Utility functions and configurations
-├── scripts/             # Database setup scripts
-├── types/               # TypeScript type definitions
-└── public/              # Static assets
-\`\`\`
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
-
-## License
-
-This project is licensed under the MIT License.
-
-## Git Commands for Upload
-
-Use these commands to upload to your GitHub repository:
-
-\`\`\`bash
-# Navigate to your project directory
-cd your-project-directory
-
-# Initialize git repository
-git init
-
-# Add all files
-git add .
-
-# Make initial commit
-git commit -m "Initial commit: Dental clinic management system"
-
-# Set main branch
-git branch -M main
-
-# Add your repository as remote origin
-git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPOSITORY_NAME.git
-
-# Push to GitHub
-git push -u origin main
-\`\`\`
-
-## Netlify Deployment Steps
-
-1. **Create GitHub Repository**: Create a new repository on GitHub
-2. **Push Code**: Use the git commands above to push your code
-3. **Connect to Netlify**: 
-   - Go to netlify.com and sign in
-   - Click "New site from Git"
-   - Choose GitHub and select your repository
-   - Build settings are automatically configured via `netlify.toml`
-4. **Add Environment Variables**: In Netlify dashboard, add your Supabase URL and API key
-5. **Deploy**: Click deploy and your site will be live!
-
-The `netlify.toml` file I included will handle all the build configuration automatically.
+**Akshay Gaikwad**  
+Founder & Lead Engineer at [Streamline.dev](https://github.com/Streamline-dev0)  
+- 🌐 Portfolio: [stream-line.dev](https://stream-line.dev/)  
+- 💼 LinkedIn: [linkedin.com/in/akshayjgaikwad](https://www.linkedin.com/in/akshayjgaikwad/)  
+- 🐙 GitHub: [@Akshayjg2204](https://github.com/Akshayjg2204)  

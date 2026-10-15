@@ -1,7 +1,29 @@
 {
-  "name": "dental-clinic-management",
-  "version": "0.1.0",
-  "private": true,
+  "name": "dentalcarepro",
+  "version": "1.0.0",
+  "private": false,
+  "description": "DentalCare Pro — Enterprise Dental Clinic Management System with appointment scheduling, patient records, staff management, and billing workflows built with Next.js 14, Supabase (PostgreSQL), and Tailwind CSS.",
+  "author": {
+    "name": "Akshay Gaikwad",
+    "url": "https://stream-line.dev/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Akshayjg2204/dentalcarepro.git"
+  },
+  "keywords": [
+    "dental-clinic",
+    "clinic-management",
+    "healthcare-saas",
+    "appointment-scheduling",
+    "nextjs",
+    "react",
+    "typescript",
+    "supabase",
+    "postgresql",
+    "tailwindcss",
+    "radix-ui"
+  ],
   "scripts": {
     "build": "next build",
     "dev": "next dev",
